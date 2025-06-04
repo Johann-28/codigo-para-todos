@@ -215,13 +215,13 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
     return difficultyTexts[difficulty as keyof typeof difficultyTexts] || 'Basic';
   }
 
-  goToDashboard() {
+  goToHome() {
     const result = this.evaluationResult();
     if (result) {
       // Save to localStorage as backup
       localStorage.setItem('evaluationResult', JSON.stringify(result));
     }
 
-    this.router.navigate(['/dashboard']);
+    this.router.navigate(['/home']);
   }
 }

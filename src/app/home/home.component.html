@@ -1,0 +1,205 @@
+<div class="home-container">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">Code for Everyone</div>
+      <div class="user-menu">
+        <div class="user-info" (click)="viewProfile()">
+          <div class="avatar">{{ userName().charAt(0).toUpperCase() }}</div>
+          <span class="user-name">{{ userName() }}</span>
+          <div class="dropdown-arrow">▼</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Welcome Section -->
+    <section class="welcome-section">
+      <div class="welcome-content">
+        <h1 class="welcome-title">
+          {{ greeting() }}, {{ userName() }}! 👋
+        </h1>
+        <p class="welcome-subtitle">
+          Ready to continue your learning journey?
+        </p>
+      </div>
+    </section>
+
+    <!-- Evaluation Result Section -->
+    <section class="evaluation-summary" *ngIf="evaluationResult()">
+      <div class="card">
+        <div class="card-header">
+          <h2>Your Current Level</h2>
+          <button class="btn-link" (click)="retakeEvaluation()">
+            Retake evaluation
+          </button>
+        </div>
+        <div class="evaluation-content">
+          <div class="level-display">
+            <div class="level-badge"
+              [style.background-color]="getDifficultyColor(evaluationResult()?.level || 'basic')">
+              {{ getDifficultyText(evaluationResult()?.level || 'basic') }}
+            </div>
+            <div class="score-display">
+              <span class="score">{{ evaluationResult()?.score }}%</span>
+              <span class="score-label">Score</span>
+            </div>
+          </div>
+          <div class="learning-style" *ngIf="evaluationResult()?.learningStyle">
+            <span class="style-label">Learning style:</span>
+            <span class="style-value">{{ evaluationResult()?.learningStyle }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="quick-actions">
+      <div class="action-grid">
+        <button class="action-card primary" (click)="continueLearning()">
+          <div class="action-icon">🚀</div>
+          <div class="action-content">
+            <h3>Continue Learning</h3>
+            <p>Continue with your personalized learning path</p>
+          </div>
+        </button>
+
+        <button class="action-card" (click)="viewAllAchievements()">
+          <div class="action-icon">🏆</div>
+          <div class="action-content">
+            <h3>Achievements</h3>
+            <p>Check your achievements and progress</p>
+          </div>
+        </button>
+
+        <button class="action-card" (click)="viewProfile()">
+          <div class="action-icon">👤</div>
+          <div class="action-content">
+            <h3>My Profile</h3>
+            <p>Manage your personal information</p>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- Recommended Learning Paths -->
+    <section class="learning-paths">
+      <div class="section-header">
+        <h2>Recommended Paths for You</h2>
+        <p>Based on your diagnostic evaluation</p>
+      </div>
+
+      <!-- Loading State -->
+      <div class="loading-grid" *ngIf="isLoading()">
+        <div class="path-skeleton" *ngFor="let item of [1,2,3]"></div>
+      </div>
+
+      <!-- Learning Paths Grid -->
+      <div class="paths-grid" *ngIf="!isLoading()">
+        <div class="path-card recommended" *ngFor="let path of recommendedPaths(); let i = index"
+          [class.featured]="i === 0" (click)="startPath(path.id)">
+
+          <div class="path-header">
+            <div class="path-icon" [style.background-color]="path.color">
+              {{ path.icon }}
+            </div>
+            <div class="path-meta">
+              <span class="difficulty-badge" [style.background-color]="getDifficultyColor(path.difficulty)">
+                {{ getDifficultyText(path.difficulty) }}
+              </span>
+              <span class="recommended-tag" *ngIf="i === 0">⭐ Recommended</span>
+            </div>
+          </div>
+
+          <div class="path-content">
+            <h3 class="path-title">{{ path.title }}</h3>
+            <p class="path-description">{{ path.description }}</p>
+
+            <div class="path-stats">
+              <div class="stat">
+                <span class="stat-icon">📚</span>
+                <span class="stat-text">{{ path.modules }} modules</span>
+              </div>
+              <div class="stat">
+                <span class="stat-icon">⏱️</span>
+                <span class="stat-text">{{ path.estimatedTime }}</span>
+              </div>
+            </div>
+
+            <div class="path-progress" *ngIf="path.progress && path.progress > 0">
+              <div class="progress-bar">
+                <div class="progress-fill" [style.width.%]="path.progress"></div>
+              </div>
+              <span class="progress-text">{{ path.progress }}% completed</span>
+            </div>
+          </div>
+
+          <div class="path-action">
+            <span class="start-text" *ngIf="!path.progress || path.progress === 0">
+              Start →
+            </span>
+            <span class="continue-text" *ngIf="path.progress && path.progress > 0">
+              Continue →
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- All Paths Section -->
+      <div class="all-paths-section" *ngIf="!isLoading()">
+        <h3>All Learning Paths</h3>
+        <div class="all-paths-grid">
+          <div class="path-card-small" *ngFor="let path of learningPaths()" (click)="startPath(path.id)">
+
+            <div class="path-icon-small" [style.background-color]="path.color">
+              {{ path.icon }}
+            </div>
+            <div class="path-info">
+              <h4>{{ path.title }}</h4>
+              <span class="difficulty-text">{{ getDifficultyText(path.difficulty) }}</span>
+            </div>
+            <div class="path-arrow">→</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Achievements -->
+    <section class="achievements-section" *ngIf="recentAchievements().length > 0">
+      <div class="section-header">
+        <h2>Recent Achievements</h2>
+        <button class="btn-link" (click)="viewAllAchievements()">
+          View all
+        </button>
+      </div>
+
+      <div class="achievements-list">
+        <div class="achievement-item" *ngFor="let achievement of recentAchievements()">
+          <div class="achievement-icon">{{ achievement.icon }}</div>
+          <div class="achievement-content">
+            <h4>{{ achievement.title }}</h4>
+            <p>{{ achievement.description }}</p>
+            <span class="achievement-time">{{ formatDate(achievement.unlockedAt) }}</span>
+          </div>
+          <div class="achievement-points">
+            +{{ achievement.points }} pts
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tips Section -->
+    <section class="tips-section">
+      <div class="tip-card">
+        <div class="tip-icon">💡</div>
+        <div class="tip-content">
+          <h3>Tip of the day</h3>
+          <p>Programming is best learned by practicing every day. Dedicate at least 30 minutes daily to your learning!
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>

@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
-import { DiagnosticEvaluationComponent } from './diagnostic-evaluation/diagnostic-evaluation.component';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-root',
-  imports: [DiagnosticEvaluationComponent],
+  imports: [RouterModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
