@@ -1,0 +1,337 @@
+<div class="course-container" [class.sidebar-hidden]="!showSidebar()">
+  <!-- Loading State -->
+  <div class="loading-overlay" *ngIf="isLoading()">
+    <div class="loading-spinner"></div>
+    <p>Loading course content...</p>
+  </div>
+
+  <!-- Header -->
+  <header class="course-header">
+    <div class="header-left">
+      <button class="btn-back" (click)="backToCourse()">
+        ← Back to courses
+      </button>
+      <button class="btn-toggle-sidebar" (click)="toggleSidebar()">
+        <span *ngIf="showSidebar()">← Hide</span>
+        <span *ngIf="!showSidebar()">→ Show</span>
+      </button>
+    </div>
+
+    <div class="header-center" *ngIf="course()">
+      <h1 class="course-title">{{ course()?.title }}</h1>
+      <div class="course-meta">
+        <span class="instructor">{{ course()?.instructor?.avatar }} {{ course()?.instructor?.name }}</span>
+        <span class="rating">⭐ {{ course()?.instructor?.rating }}</span>
+      </div>
+    </div>
+
+    <div class="header-right" *ngIf="courseProgress()">
+      <div class="progress-summary">
+        <div class="progress-circle">
+          <svg width="50" height="50">
+            <circle cx="25" cy="25" r="20" fill="none" stroke="#e5e7eb" stroke-width="4"/>
+            <circle 
+              cx="25" cy="25" r="20" 
+              fill="none" 
+              stroke="#10b981" 
+              stroke-width="4"
+              stroke-linecap="round"
+              [style.stroke-dasharray]="125.6"
+              [style.stroke-dashoffset]="125.6 * (1 - courseProgress()!.progressPercentage / 100)"
+              transform="rotate(-90 25 25)"/>
+          </svg>
+          <span class="progress-text">{{ courseProgress()?.progressPercentage }}%</span>
+        </div>
+        <div class="progress-details">
+          <span>{{ courseProgress()?.completedLessons }}/{{ courseProgress()?.totalLessons }} lessons</span>
+          <span>{{ completedModules() }}/{{ totalModules() }} modules</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="course-content">
+    <!-- Sidebar -->
+    <aside class="sidebar" *ngIf="showSidebar()">
+      <div class="sidebar-header">
+        <h3>Course Content</h3>
+        <div class="course-stats">
+          <span class="stat">
+            📚 {{ totalModules() }} modules
+          </span>
+          <span class="stat">
+            🎓 {{ courseProgress()?.totalLessons || 0 }} lessons
+          </span>
+        </div>
+      </div>
+
+      <div class="modules-list">
+        <div 
+          class="module-item"
+          *ngFor="let module of modules(); let i = index"
+          [class.expanded]="isModuleExpanded(module.id)"
+          [class.current]="selectedModule()?.id === module.id">
+          
+          <div class="module-header" (click)="toggleModule(module.id)">
+            <div class="module-info">
+              <span class="module-number">{{ i + 1 }}</span>
+              <div class="module-details">
+                <h4 class="module-title">{{ module.title }}</h4>
+                <span class="module-meta">
+                  {{ module.lessons.length }} lessons • {{ module.estimatedTime }}
+                </span>
+              </div>
+            </div>
+            
+            <div class="module-controls">
+              <div class="module-progress">
+                <div class="progress-bar-mini">
+                  <div 
+                    class="progress-fill-mini" 
+                    [style.width.%]="getModuleProgress(module.id)">
+                  </div>
+                </div>
+                <span class="progress-percentage">{{ getModuleProgress(module.id) }}%</span>
+              </div>
+              <span class="expand-icon">
+                {{ isModuleExpanded(module.id) ? '▼' : '▶' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="lessons-list" *ngIf="isModuleExpanded(module.id)">
+            <div 
+              class="lesson-item"
+              *ngFor="let lesson of module.lessons"
+              [class.completed]="lesson.isCompleted"
+              [class.current]="selectedLesson()?.id === lesson.id"
+              [class.locked]="!canAccessLesson(lesson, module)"
+              (click)="selectLesson(lesson, module)">
+              
+              <div class="lesson-icon">
+                <span *ngIf="lesson.isCompleted" class="completed-icon">✓</span>
+                <span *ngIf="!lesson.isCompleted && canAccessLesson(lesson, module)" class="type-icon">
+                  {{ getLessonIcon(lesson.type) }}
+                </span>
+                <span *ngIf="!canAccessLesson(lesson, module)" class="locked-icon">🔒</span>
+              </div>
+
+              <div class="lesson-info">
+                <h5 class="lesson-title">{{ lesson.title }}</h5>
+                <div class="lesson-meta">
+                  <span class="lesson-type">{{ getLessonTypeText(lesson.type) }}</span>
+                  <span class="lesson-duration">{{ formatDuration(lesson.estimatedTime) }}</span>
+                </div>
+              </div>
+
+              <div class="lesson-status">
+                <span *ngIf="selectedLesson()?.id === lesson.id" class="current-indicator">▶</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="lesson-container" *ngIf="selectedLesson() && selectedModule(); else noLessonSelected">
+        <!-- Lesson Loading -->
+        <div class="lesson-loading" *ngIf="isLessonLoading()">
+          <div class="loading-spinner-small"></div>
+          <p>Loading lesson...</p>
+        </div>
+
+        <!-- Lesson Content -->
+        <div class="lesson-content" *ngIf="!isLessonLoading()">
+          <header class="lesson-header">
+            <div class="lesson-breadcrumb">
+              <span class="module-name">{{ selectedModule()?.title }}</span>
+              <span class="separator">›</span>
+              <span class="lesson-name">{{ selectedLesson()?.title }}</span>
+            </div>
+
+            <div class="lesson-meta-bar">
+              <div class="lesson-type-badge" [class]="selectedLesson()?.type">
+                {{ getLessonIcon(selectedLesson()?.type || '') }}
+                {{ getLessonTypeText(selectedLesson()?.type || '') }}
+              </div>
+              <span class="lesson-duration">{{ formatDuration(selectedLesson()?.estimatedTime || '') }}</span>
+              <span class="lesson-status" *ngIf="selectedLesson()?.isCompleted">
+                ✓ Completed
+              </span>
+            </div>
+          </header>
+
+          <div class="lesson-body">
+            <h1 class="lesson-title">{{ selectedLesson()?.title }}</h1>
+            <p class="lesson-description">{{ selectedLesson()?.description }}</p>
+
+            <!-- Video Content -->
+            <div class="content-video" *ngIf="selectedLesson()?.type === 'video'">
+              <div class="video-placeholder">
+                <div class="video-icon">🎥</div>
+                <h3>Video: {{ selectedLesson()?.title }}</h3>
+                <p>{{ selectedLesson()?.description }}</p>
+                <button class="btn-play">▶ Play Video</button>
+              </div>
+            </div>
+
+            <!-- Reading Content -->
+            <div class="content-reading" *ngIf="selectedLesson()?.type === 'reading'">
+              <div class="reading-content">
+                <div class="reading-icon">📖</div>
+                <h3>Reading Material</h3>
+                <div class="reading-text">
+                  <p>This content includes important theoretical material to understand the fundamental concepts.</p>
+                  <p>In a real implementation, the full reading material content would be shown here, which could include:</p>
+                  <ul>
+                    <li>Detailed theoretical explanations</li>
+                    <li>Practical examples</li>
+                    <li>Diagrams and schemes</li>
+                    <li>Additional references</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Exercise Content -->
+            <div class="content-exercise" *ngIf="selectedLesson()?.type === 'exercise'">
+              <div class="exercise-content">
+                <div class="exercise-icon">💻</div>
+                <h3>Practical Exercise</h3>
+                <div class="exercise-description">
+                  <p>{{ selectedLesson()?.description }}</p>
+                  <div class="exercise-placeholder">
+                    <h4>Exercise Instructions</h4>
+                    <p>In a full implementation, the following would appear here:</p>
+                    <ul>
+                      <li>Integrated code editor</li>
+                      <li>Step-by-step instructions</li>
+                      <li>Test cases</li>
+                      <li>Automatic verification system</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quiz Content -->
+            <div class="content-quiz" *ngIf="selectedLesson()?.type === 'quiz'">
+              <div class="quiz-content">
+                <div class="quiz-icon">❓</div>
+                <h3>Quiz</h3>
+                <div class="quiz-description">
+                  <p>{{ selectedLesson()?.description }}</p>
+                  <div class="quiz-placeholder">
+                    <h4>Sample Question</h4>
+                    <p>What is the main advantage of using flowcharts?</p>
+                    <div class="quiz-options">
+                      <label class="quiz-option">
+                        <input type="radio" name="q1" value="a">
+                        <span>A) They are faster to create than code</span>
+                      </label>
+                      <label class="quiz-option">
+                        <input type="radio" name="q1" value="b">
+                        <span>B) They help visualize logic before coding</span>
+                      </label>
+                      <label class="quiz-option">
+                        <input type="radio" name="q1" value="c">
+                        <span>C) They completely replace code</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Project Content -->
+            <div class="content-project" *ngIf="selectedLesson()?.type === 'project'">
+              <div class="project-content">
+                <div class="project-icon">🚀</div>
+                <h3>Project</h3>
+                <div class="project-description">
+                  <p>{{ selectedLesson()?.description }}</p>
+                  <div class="project-placeholder">
+                    <h4>Project Specifications</h4>
+                    <p>This project integrates the knowledge acquired. It includes:</p>
+                    <ul>
+                      <li>Clear project objectives</li>
+                      <li>Required resources and tools</li>
+                      <li>Evaluation criteria</li>
+                      <li>Expected deliverables</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lesson Actions -->
+          <footer class="lesson-footer">
+            <div class="lesson-navigation">
+              <button 
+                class="btn-nav btn-previous"
+                (click)="goToPreviousLesson()"
+                [disabled]="!selectedLesson()">
+                ← Previous
+              </button>
+
+              <button 
+                class="btn-complete"
+                *ngIf="!selectedLesson()?.isCompleted"
+                (click)="completeLesson()">
+                ✓ Mark as Completed
+              </button>
+
+              <span class="completed-badge" *ngIf="selectedLesson()?.isCompleted">
+                ✓ Lesson Completed
+              </span>
+
+              <button 
+                class="btn-nav btn-next"
+                (click)="goToNextLesson()">
+                Next →
+              </button>
+            </div>
+          </footer>
+        </div>
+      </div>
+
+      <!-- No Lesson Selected State -->
+      <ng-template #noLessonSelected>
+        <div class="no-lesson-state">
+          <div class="welcome-content">
+            <div class="welcome-icon">🎓</div>
+            <h2>Welcome to {{ course()?.title }}!</h2>
+            <p class="welcome-description">{{ course()?.description }}</p>
+            
+            <div class="course-overview" *ngIf="courseProgress()">
+              <div class="overview-stats">
+                <div class="stat-item">
+                  <span class="stat-number">{{ courseProgress()?.totalLessons }}</span>
+                  <span class="stat-label">Lessons</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-number">{{ totalModules() }}</span>
+                  <span class="stat-label">Modules</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-number">{{ course()?.estimatedTime }}</span>
+                  <span class="stat-label">Duration</span>
+                </div>
+              </div>
+
+              <button 
+                class="btn-start-course"
+                *ngIf="nextAvailableLesson()"
+                (click)="selectLesson(nextAvailableLesson()!, modules()[0])">
+                🚀 {{ courseProgress()?.completedLessons === 0 ? 'Start Course' : 'Continue Learning' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+    </main>
+  </div>
+</div>

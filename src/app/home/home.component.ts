@@ -3,9 +3,9 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subject, takeUntil, forkJoin } from 'rxjs';
 import { EvaluationResult } from '../models/diagnostic-evaluation/evaluation-result.interface';
-import { LearningPath } from '../models/home/learning-path.interface';
 import { Achievement } from '../models/home/achievement.interface';
 import { DailyTip } from '../models/home/daily-tip.interface';
+import { LearningPath } from '../models/home/learning-path.interface';
 import { UserStats } from '../models/home/user-stats';
 import { HomeService } from '../shared/home.service';
 
@@ -34,9 +34,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Computed values
   greeting = computed(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning!';
-    if (hour < 18) return 'Good afternoon!';
-    return 'Good evening!';
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
   });
 
   hasInProgressPaths = computed(() => {
@@ -78,11 +78,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.isLoading.set(true);
 
     // Load all data in parallel using forkJoin
-    const evaluationResult = this.evaluationResult() ?? undefined;
+    const evaluationResult = this.evaluationResult();
+    const evaluationResultOrUndefined = evaluationResult === null ? undefined : evaluationResult;
     
     forkJoin({
       learningPaths: this.homeService.getLearningPaths(),
-      recommendedPaths: this.homeService.getRecommendedPaths(evaluationResult),
+      recommendedPaths: this.homeService.getRecommendedPaths(evaluationResultOrUndefined),
       recentAchievements: this.homeService.getRecentAchievements(3),
       userStats: this.homeService.getUserStats(),
       dailyTip: this.homeService.getDailyTip()
