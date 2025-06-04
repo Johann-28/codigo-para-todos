@@ -1,0 +1,181 @@
+<div class="evaluation-container">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">Code for Everyone</div>
+      <div class="user-info">
+        <span>USER NAME</span>
+        <div class="dropdown-arrow">▼</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Progress Bar -->
+  <section class="progress-container">
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="progressPercentage()"></div>
+    </div>
+    <span class="progress-text">
+      Question {{ (currentSession()?.answers?.length || 0) + 1 }} of {{ questions().length || '...' }}
+    </span>
+    
+    <!-- Debug info (should be removed in production) -->
+    <div class="debug-info" style="font-size: 12px; color: #666; margin-top: 5px;">
+      Debug: Progress = {{ progressPercentage() }}% | Current Index = {{ currentSession()?.currentQuestionIndex || 0 }}
+    </div>
+  </section>
+
+  <!-- Loading State -->
+  <section class="loading-container" *ngIf="isLoading()">
+    <div class="loading-spinner" role="status" aria-label="Loading"></div>
+    <p>Loading evaluation...</p>
+  </section>
+
+  <!-- Error State -->
+  <section class="error-container" *ngIf="error()">
+    <div class="error-card" role="alert">
+      <h3>Oops! Something went wrong</h3>
+      <p>{{ error() }}</p>
+      <button class="btn btn-primary" (click)="retryEvaluation()" type="button">
+        Try Again
+      </button>
+    </div>
+  </section>
+
+  <!-- Question Container -->
+  <main class="question-container" *ngIf="!showResults() && !isLoading() && !error() && currentQuestion()">
+    <article class="question-card">
+      <header class="question-header">
+        <h1 class="question-title">Diagnostic Evaluation</h1>
+      </header>
+
+      <div class="question-content">
+        <h2>{{ currentQuestion()?.question }}</h2>
+
+        <fieldset class="options-container">
+          <div *ngFor="let option of currentQuestion()?.options; let i = index" 
+               class="option-item"
+               [class.selected]="selectedAnswer() === i" 
+               (click)="selectAnswer(i)">
+            <input type="radio" 
+                   [id]="'option-' + i" 
+                   [name]="'question-' + (currentSession()?.currentQuestionIndex || 0)"
+                   [value]="i" 
+                   [checked]="selectedAnswer() === i"
+                   (change)="selectAnswer(i)">
+            <label [for]="'option-' + i">{{ option }}</label>
+          </div>
+        </fieldset>
+      </div>
+
+      <footer class="question-actions">
+        <div class="action-spacer"></div>
+        <button class="btn btn-primary" 
+                [disabled]="!canGoNext() || isLoading()" 
+                (click)="nextQuestion()"
+                type="button">
+          <span *ngIf="!isLoading()">Next</span>
+          <span *ngIf="isLoading()">Processing...</span>
+        </button>
+      </footer>
+
+      <!-- Question Metadata -->
+      <aside class="question-info">
+        <span class="difficulty-badge" 
+              [class]="'difficulty-' + currentQuestion()?.difficulty"
+              [attr.aria-label]="'Difficulty: ' + getDifficultyText(currentQuestion()?.difficulty)">
+          {{ getDifficultyText(currentQuestion()?.difficulty) }}
+        </span>
+        <span class="topic-badge"
+              [attr.aria-label]="'Topic: ' + currentQuestion()?.topic">
+          {{ currentQuestion()?.topic }}
+        </span>
+      </aside>
+    </article>
+  </main>
+
+  <!-- Results Container -->
+  <main class="results-container" *ngIf="showResults() && evaluationResult()">
+    <article class="results-card">
+      <header>
+        <h1>Evaluation Results</h1>
+      </header>
+
+      <section class="level-indicator">
+        <div class="level-badge" 
+             [class]="getLevelClass(evaluationResult()?.level || 'basic')"
+             [attr.aria-label]="'Your level: ' + getLevelText(evaluationResult()?.level || 'basic')">
+          {{ getLevelText(evaluationResult()?.level || 'basic') }}
+        </div>
+      </section>
+
+      <section class="score-summary">
+        <div class="score-item">
+          <span class="score-label">Total Score:</span>
+          <span class="score-value">{{ evaluationResult()?.score }}%</span>
+        </div>
+
+        <div class="score-item">
+          <span class="score-label">Learning Style:</span>
+          <span class="score-value">{{ evaluationResult()?.learningStyle }}</span>
+        </div>
+
+        <div class="score-item">
+          <span class="score-label">Questions Answered:</span>
+          <span class="score-value">{{ (currentSession()?.answers?.length) || 0 }}</span>
+        </div>
+      </section>
+
+      <section class="topics-breakdown" *ngIf="getTopicEntries().length > 0">
+        <h2>Performance by Topic:</h2>
+        <div class="topic-list" role="list">
+          <div *ngFor="let topic of getTopicEntries()" 
+               class="topic-item" 
+               role="listitem">
+            <span class="topic-name">{{ topic.key }}</span>
+            <div class="topic-progress" 
+                 role="progressbar" 
+                 [attr.aria-valuenow]="topic.value"
+                 [attr.aria-valuemin]="0"
+                 [attr.aria-valuemax]="100"
+                 [attr.aria-label]="topic.key + ' progress: ' + topic.value + '%'">
+              <div class="topic-fill" [style.width.%]="topic.value"></div>
+            </div>
+            <span class="topic-score">{{ topic.value }}%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recommendations Section -->
+      <section class="recommendations-section" *ngIf="evaluationResult()?.recommendations?.length">
+        <h2>Personalized Recommendations:</h2>
+        <ul class="recommendations-list">
+          <li *ngFor="let recommendation of evaluationResult()?.recommendations">
+            {{ recommendation }}
+          </li>
+        </ul>
+      </section>
+
+      <footer>
+        <button class="btn btn-primary btn-large" 
+                (click)="goToDashboard()"
+                type="button">
+          Continue to Dashboard
+        </button>
+      </footer>
+    </article>
+  </main>
+
+  <!-- No Questions State -->
+  <section class="no-questions-container" *ngIf="!isLoading() && !error() && questions().length === 0">
+    <div class="no-questions-card" role="alert">
+      <h2>No questions available</h2>
+      <p>Please contact the system administrator.</p>
+      <button class="btn btn-secondary" 
+              (click)="retryEvaluation()"
+              type="button">
+        Retry
+      </button>
+    </div>
+  </section>
+</div>
