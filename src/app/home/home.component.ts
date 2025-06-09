@@ -112,12 +112,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           // Navigate to learning path
-          this.router.navigate(['/learning-path', pathId]);
+          this.router.navigate(['/courses', pathId]);
         },
         error: (error) => {
           console.error('Error enrolling in path:', error);
           // Still navigate even if enrollment fails (for demo purposes)
-          this.router.navigate(['/learning-path', pathId]);
+          this.router.navigate(['/courses', pathId]);
         }
       });
   }

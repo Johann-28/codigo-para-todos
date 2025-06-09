@@ -28,7 +28,7 @@
     </section>
 
     <!-- Evaluation Result Section -->
-    <section class="evaluation-summary" *ngIf="evaluationResult()">
+    <section class="evaluation-summary" *ngIf="evaluationResult(); else evaluationSummary">
       <div class="card">
         <div class="card-header">
           <h2>Your Current Level</h2>
@@ -54,6 +54,61 @@
         </div>
       </div>
     </section>
+
+    <ng-template #evaluationSummary>
+      <div class="diagnostic-section">
+            <div class="diagnostic-header">
+                <div class="diagnostic-title">
+                    <div class="diagnostic-icon">📊</div>
+                    <h2>Diagnostic Evaluation</h2>
+                </div>
+                <div class="diagnostic-status">
+                    <div class="status-dot"></div>
+                    Pendiente
+                </div>
+            </div>
+
+            <div class="diagnostic-content">
+                <div class="diagnostic-info">
+                    <p class="diagnostic-description">
+                        Descubre tu nivel actual y recibe recomendaciones personalizadas para acelerar tu aprendizaje en programación.
+                    </p>
+                    
+                    <ul class="diagnostic-benefits">
+                        <li>
+                            <div class="benefit-icon">✓</div>
+                            <span>Evaluación personalizada de tus habilidades</span>
+                        </li>
+                        <li>
+                            <div class="benefit-icon">✓</div>
+                            <span>Rutas de aprendizaje adaptadas a tu nivel</span>
+                        </li>
+                        <li>
+                            <div class="benefit-icon">✓</div>
+                            <span>Identificación de áreas de mejora</span>
+                        </li>
+                        <li>
+                            <div class="benefit-icon">✓</div>
+                            <span>Recomendaciones de proyectos y recursos</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="diagnostic-action">
+                    <div class="evaluation-illustration">
+                        🎯
+                    </div>
+                    <button class="btn-start-evaluation" (click)="retakeEvaluation()">
+                        Comenzar Evaluación
+                    </button>
+                    <div class="evaluation-time">
+                        <span class="time-icon">⏱️</span>
+                        <span>Aproximadamente 10-15 minutos</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </ng-template>
 
     <!-- Quick Actions -->
     <section class="quick-actions">

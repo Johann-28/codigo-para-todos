@@ -63,6 +63,12 @@ export const routes: Routes = [
       }
     ]
   },
+  {
+    path: 'diagnostic-evaluation',
+    loadComponent: () => import('./diagnostic-evaluation/diagnostic-evaluation.component').then(m => m.DiagnosticEvaluationComponent),
+    canActivate: [AuthGuard]
+  },
+  
 
   // User profile
   {
