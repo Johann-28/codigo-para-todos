@@ -1,0 +1,179 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🐍 FastAPI Backend",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "app.main:app",
+                "--reload",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8000"
+            ],
+            "cwd": "${workspaceFolder}/backend",
+            "jinja": true,
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/backend"
+            },
+            "console": "integratedTerminal",
+            "autoReload": {
+                "enable": true
+            }
+        },
+        {
+            "name": "🅰️ Angular Frontend",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/frontend/node_modules/@angular/cli/bin/ng",
+            "args": [
+                "serve",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "4200",
+                "--source-map"
+            ],
+            "cwd": "${workspaceFolder}/frontend",
+            "console": "integratedTerminal",
+            "env": {
+                "NODE_ENV": "development"
+            }
+        },
+        {
+            "name": "🔗 Full Stack (Frontend + Backend)",
+            "type": "node",
+            "request": "launch",
+            "compounds": [
+                "🐍 FastAPI Backend",
+                "🅰️ Angular Frontend"
+            ]
+        },
+        {
+            "name": "🧪 FastAPI Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "-v",
+                "--tb=short",
+                "tests/"
+            ],
+            "cwd": "${workspaceFolder}/backend",
+            "jinja": true,
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/backend",
+                "ENVIRONMENT": "testing"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🐛 Debug Specific FastAPI File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "cwd": "${workspaceFolder}/backend",
+            "jinja": true,
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/backend"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🚀 FastAPI Production Mode",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--workers",
+                "1"
+            ],
+            "cwd": "${workspaceFolder}/backend",
+            "jinja": true,
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/backend",
+                "ENVIRONMENT": "production"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🔧 Angular Build Debug",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/frontend/node_modules/@angular/cli/bin/ng",
+            "args": [
+                "build",
+                "--source-map",
+                "--watch"
+            ],
+            "cwd": "${workspaceFolder}/frontend",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🧪 Angular Tests",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/frontend/node_modules/@angular/cli/bin/ng",
+            "args": [
+                "test",
+                "--watch",
+                "--source-map"
+            ],
+            "cwd": "${workspaceFolder}/frontend",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "📱 Chrome Debugger (Angular)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:4200",
+            "webRoot": "${workspaceFolder}/frontend/src",
+            "sourceMaps": true,
+            "userDataDir": "${workspaceFolder}/.vscode/chrome-debug-user-data",
+            "runtimeArgs": [
+                "--disable-web-security",
+                "--allow-running-insecure-content"
+            ]
+        }
+    ],
+    "compounds": [
+        {
+            "name": "🚀 Full Stack Debug",
+            "configurations": [
+                "🐍 FastAPI Backend",
+                "🅰️ Angular Frontend"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Full Stack",
+                "order": 1
+            }
+        },
+        {
+            "name": "🧪 Test Everything",
+            "configurations": [
+                "🧪 FastAPI Tests",
+                "🧪 Angular Tests"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Testing",
+                "order": 2
+            }
+        }
+    ]
+}
