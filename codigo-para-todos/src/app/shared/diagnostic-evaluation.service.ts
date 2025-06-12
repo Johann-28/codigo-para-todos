@@ -1,234 +1,410 @@
-import { Injectable, inject } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, BehaviorSubject } from 'rxjs';
-import { delay, map, catchError } from 'rxjs/operators';
-import { environment } from '../../environments/environment';
+import { Observable, of, delay, BehaviorSubject } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
+import { Achievement } from '../models/home/achievement.interface';
+import { EvaluationResult } from '../models/diagnostic-evaluation/evaluation-result.interface';
+import { Lesson } from '../models/course-content/lesson.interface';
+import { UserStats } from '../models/home/user-stats';
+import { environment } from '../../../../backend/app/environment/environment';
 
-export interface Question {
-  id: number;
-  question: string;
-  options: string[];
-  correctAnswer: number;
+export interface LearningPath {
+  id: string;
+  title: string;
+  description: string;
   difficulty: 'basic' | 'intermediate' | 'advanced';
-  topic: string;
+  estimatedTime: string;
+  modules: number;
+  icon: string;
+  color: string;
+  progress?: number;
+  enrolled?: boolean;
+  lastAccessed?: Date;
+  completedModules?: number;
+  prerequisites?: string[];
+  skills?: string[];
+  instructor?: {
+    name: string;
+    avatar: string;
+    rating: number;
+  };
+  rating?: {
+    average: number;
+    totalReviews: number;
+  };
+  isNew?: boolean;
+  isPopular?: boolean;
+  category?: string;
+  content?: CourseModule[];
 }
 
-export interface EvaluationResult {
-  level: 'basic' | 'intermediate' | 'advanced';
-  score: number;
-  topics: { [key: string]: number };
-  learningStyle: string;
-  recommendations: string[];
+export interface CourseModule {
+  id: string;
+  title: string;
+  description: string;
+  estimatedTime: string;
+  isCompleted?: boolean;
+  lessons: Lesson[];
+  order: number;
 }
 
-export interface UserAnswer {
-  questionId: number;
-  selectedOption: number;
-  timeSpent: number;
-  difficulty: string;
+export interface DailyTip {
+  id: string;
+  title: string;
+  content: string;
+  category: 'programming' | 'learning' | 'motivation' | 'career';
+  icon: string;
+  date: Date;
 }
 
-export interface EvaluationSession {
-  sessionId: string;
-  userId: string;
-  startTime: Date;
-  currentQuestionIndex: number;
-  answers: UserAnswer[];
-  isCompleted: boolean;
+export interface CourseProgress {
+  totalLessons: number;
+  completedLessons: number;
+  progressPercentage: number;
+  currentModule: string;
+  nextLesson: Lesson | null;
 }
 
-export interface SubmitAnswerResponse {
-  success: boolean;
-  message?: string;
-  nextQuestion?: Question;
-  isCompleted: boolean;
-  timestamp?: Date;
-}
-
-export interface EvaluationResultResponse {
-  success: boolean;
-  message?: string;
-  result: EvaluationResult;
-  session: EvaluationSession;
-  timestamp?: Date;
+export interface DashboardData {
+  userStats: UserStats;
+  recentAchievements: Achievement[];
+  dailyTip: DailyTip;
+  pathProgress: { pathId: string; progress: number }[];
+  lastUpdated: string;
 }
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
-export class DiagnosticEvaluationService {
+export class HomeService {
+  private readonly apiUrl = environment.apiUrl;
   private http = inject(HttpClient);
-  private readonly apiUrl = `${environment.apiUrl}/diagnostic`;
-
-  // Session management
-  private currentSession$ = new BehaviorSubject<EvaluationSession | null>(null);
-
-  constructor() {}
+  
+  constructor(private httpClient: HttpClient) {
+    this.http = httpClient;
+  }
 
   /**
-   * Starts a new evaluation session
+   * Gets all available learning paths
    */
-  startEvaluationSession(userId: string): Observable<EvaluationSession> {
-    const requestData = { user_id: userId };
+  getLearningPaths(): Observable<LearningPath[]> {
+    return this.http.get<LearningPath[]>(`${this.apiUrl}/learning-paths`).pipe(
+      map((paths: any[]) => paths.map(path => this.mapLearningPathFromBackend(path))),
+      catchError((error) => {
+        console.error('Error getting learning paths:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Gets learning paths filtered by difficulty level
+   */
+  getLearningPathsByDifficulty(difficulty: string): Observable<LearningPath[]> {
+    return this.http.get<LearningPath[]>(`${this.apiUrl}/learning-paths/by-difficulty?difficulty=${difficulty}`).pipe(
+      map((paths: any[]) => paths.map(path => this.mapLearningPathFromBackend(path))),
+      catchError((error) => {
+        console.error('Error getting learning paths by difficulty:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Gets recommended learning paths based on user's evaluation result
+   */
+  getRecommendedPaths(userId: string, evaluationResult?: EvaluationResult): Observable<LearningPath[]> {
+    let url = `${this.apiUrl}/learning-paths/recommended/${userId}`;
     
-    return this.http.post<EvaluationSession>(`${this.apiUrl}/start-session`, requestData).pipe(
-      map((session: EvaluationSession) => {
-        this.currentSession$.next(session);
-        return session;
-      }),
+    if (evaluationResult?.level) {
+      url += `?evaluation_level=${evaluationResult.level}`;
+    }
+
+    return this.http.get<LearningPath[]>(url).pipe(
+      map((paths: any[]) => paths.map(path => this.mapLearningPathFromBackend(path))),
       catchError((error) => {
-        console.error('Error starting evaluation session:', error);
+        console.error('Error getting recommended paths:', error);
         throw error;
       })
     );
   }
 
   /**
-   * Gets adaptive questions based on user's previous answers
+   * Gets user's recent achievements
    */
-  getAdaptiveQuestions(sessionId: string): Observable<Question[]> {
-    return this.http.get<Question[]>(`${this.apiUrl}/questions/${sessionId}/adaptive`).pipe(
+  getRecentAchievements(userId: string, limit: number = 5): Observable<Achievement[]> {
+    return this.http.get<Achievement[]>(`${this.apiUrl}/home/achievements/${userId}/recent?limit=${limit}`).pipe(
+      map((achievements: any[]) => achievements.map(achievement => this.mapAchievementFromBackend(achievement))),
       catchError((error) => {
-        console.error('Error getting adaptive questions:', error);
+        console.error('Error getting recent achievements:', error);
         throw error;
       })
     );
   }
 
   /**
-   * Gets initial questions for the evaluation
+   * Gets all user achievements
    */
-  getQuestions(): Observable<Question[]> {
-    return this.http.get<Question[]>(`${this.apiUrl}/questions`).pipe(
+  getAllAchievements(userId: string): Observable<Achievement[]> {
+    return this.http.get<Achievement[]>(`${this.apiUrl}/home/achievements/${userId}`).pipe(
+      map((achievements: any[]) => achievements.map(achievement => this.mapAchievementFromBackend(achievement))),
       catchError((error) => {
-        console.error('Error getting questions:', error);
+        console.error('Error getting all achievements:', error);
         throw error;
       })
     );
   }
 
   /**
-   * Gets the current session (for component access)
+   * Gets user statistics and progress
    */
-  getCurrentSession(): Observable<EvaluationSession | null> {
-    return this.currentSession$.asObservable();
-  }
-
-  /**
-   * Gets session by ID
-   */
-  getSession(sessionId: string): Observable<EvaluationSession> {
-    return this.http.get<EvaluationSession>(`${this.apiUrl}/session/${sessionId}`).pipe(
-      map((session: EvaluationSession) => {
-        this.currentSession$.next(session);
-        return session;
-      }),
+  getUserStats(userId: string): Observable<UserStats> {
+    return this.http.get<any>(`${this.apiUrl}/home/stats/${userId}`).pipe(
+      map((stats: any) => this.mapUserStatsFromBackend(stats)),
       catchError((error) => {
-        console.error('Error getting session:', error);
+        console.error('Error getting user stats:', error);
         throw error;
       })
     );
   }
 
   /**
-   * Submits an answer and gets the next question (adaptive)
+   * Gets daily tip
    */
-  submitAnswer(sessionId: string, answer: UserAnswer): Observable<SubmitAnswerResponse> {
+  getDailyTip(): Observable<DailyTip> {
+    return this.http.get<any>(`${this.apiUrl}/home/daily-tip`).pipe(
+      map((tip: any) => this.mapDailyTipFromBackend(tip)),
+      catchError((error) => {
+        console.error('Error getting daily tip:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Gets comprehensive dashboard data
+   */
+  getDashboardData(userId: string): Observable<DashboardData> {
+    return this.http.get<any>(`${this.apiUrl}/home/dashboard/${userId}`).pipe(
+      map((data: any) => ({
+        userStats: this.mapUserStatsFromBackend(data.user_stats || data.userStats),
+        recentAchievements: (data.recent_achievements || data.recentAchievements || [])
+          .map((achievement: any) => this.mapAchievementFromBackend(achievement)),
+        dailyTip: this.mapDailyTipFromBackend(data.daily_tip || data.dailyTip),
+        pathProgress: data.path_progress || data.pathProgress || [],
+        lastUpdated: data.last_updated || data.lastUpdated || ''
+      })),
+      catchError((error) => {
+        console.error('Error getting dashboard data:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Updates learning path progress
+   */
+  updatePathProgress(userId: string, pathId: string, progress: number): Observable<void> {
     const requestData = {
-      session_id: sessionId,
-      answer: {
-        question_id: answer.questionId,
-        selected_option: answer.selectedOption,
-        time_spent: answer.timeSpent,
-        difficulty: answer.difficulty
-      }
+      user_id: userId,
+      path_id: pathId,
+      progress: progress
     };
 
-    return this.http.post<SubmitAnswerResponse>(`${this.apiUrl}/submit-answer`, requestData).pipe(
-      map((response: SubmitAnswerResponse) => {
-        // Update current session if needed
-        if (response.isCompleted) {
-          const currentSession = this.currentSession$.value;
-          if (currentSession) {
-            currentSession.isCompleted = true;
-            this.currentSession$.next(currentSession);
-          }
-        }
-        return response;
-      }),
+    return this.http.put<any>(`${this.apiUrl}/learning-paths/progress`, requestData).pipe(
+      map(() => void 0),
       catchError((error) => {
-        console.error('Error submitting answer:', error);
+        console.error('Error updating path progress:', error);
         throw error;
       })
     );
   }
 
   /**
-   * Calculates final evaluation results using AI
+   * Starts a learning path for the user
    */
-  calculateResults(sessionId: string): Observable<EvaluationResultResponse> {
-    return this.http.post<EvaluationResultResponse>(`${this.apiUrl}/calculate-results/${sessionId}`, {}).pipe(
+  enrollInPath(userId: string, pathId: string): Observable<void> {
+    const requestData = {
+      user_id: userId,
+      path_id: pathId
+    };
+
+    return this.http.post<any>(`${this.apiUrl}/learning-paths/enroll`, requestData).pipe(
+      map(() => void 0),
       catchError((error) => {
-        console.error('Error calculating results:', error);
+        console.error('Error enrolling in path:', error);
         throw error;
       })
     );
   }
 
   /**
-   * Saves evaluation results to database
+   * Gets detailed course content for a specific learning path
    */
-  saveResults(sessionId: string): Observable<{ success: boolean; message?: string }> {
-    return this.http.post<{ success: boolean; message?: string }>(`${this.apiUrl}/save-results/${sessionId}`, {}).pipe(
+  getCourseContent(pathId: string): Observable<CourseModule[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/learning-paths/${pathId}/content`).pipe(
+      map((modules: any[]) => modules.map(module => this.mapCourseModuleFromBackend(module))),
       catchError((error) => {
-        console.error('Error saving results:', error);
+        console.error('Error getting course content:', error);
         throw error;
       })
     );
   }
 
   /**
-   * Gets user's evaluation history
+   * Gets a specific lesson content
    */
-  getEvaluationHistory(userId: string): Observable<EvaluationResult[]> {
-    return this.http.get<EvaluationResult[]>(`${this.apiUrl}/history/${userId}`).pipe(
+  getLessonContent(lessonId: string): Observable<Lesson | null> {
+    return this.http.get<any>(`${this.apiUrl}/learning-paths/lessons/${lessonId}`).pipe(
+      map((lesson: any) => lesson ? this.mapLessonFromBackend(lesson) : null),
       catchError((error) => {
-        console.error('Error getting evaluation history:', error);
+        console.error('Error getting lesson content:', error);
         throw error;
       })
     );
   }
 
   /**
-   * Clears current session
+   * Marks a lesson as completed
    */
-  clearCurrentSession(): void {
-    this.currentSession$.next(null);
+  completeLesson(userId: string, lessonId: string): Observable<void> {
+    const requestData = {
+      user_id: userId,
+      lesson_id: lessonId
+    };
+
+    return this.http.put<any>(`${this.apiUrl}/learning-paths/lessons/complete`, requestData).pipe(
+      map(() => void 0),
+      catchError((error) => {
+        console.error('Error completing lesson:', error);
+        throw error;
+      })
+    );
   }
 
   /**
-   * Helper method to map backend response to frontend format
+   * Gets course progress summary
    */
-  private mapAnswerToBackendFormat(answer: UserAnswer) {
+  getCourseProgress(userId: string, pathId: string): Observable<CourseProgress> {
+    return this.http.get<any>(`${this.apiUrl}/learning-paths/${pathId}/progress/${userId}`).pipe(
+      map((progress: any) => ({
+        totalLessons: progress.total_lessons || progress.totalLessons,
+        completedLessons: progress.completed_lessons || progress.completedLessons,
+        progressPercentage: progress.progress_percentage || progress.progressPercentage,
+        currentModule: progress.current_module || progress.currentModule,
+        nextLesson: progress.next_lesson ? this.mapLessonFromBackend(progress.next_lesson) : null
+      })),
+      catchError((error) => {
+        console.error('Error getting course progress:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Gets user's path progress
+   */
+  getUserPathProgress(userId: string): Observable<{pathId: string, progress: number}[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/home/progress/${userId}`).pipe(
+      map((progressList: any[]) => progressList.map(item => ({
+        pathId: item.path_id || item.pathId,
+        progress: item.progress
+      }))),
+      catchError((error) => {
+        console.error('Error getting user path progress:', error);
+        throw error;
+      })
+    );
+  }
+
+  // Helper methods to map backend responses to frontend models
+  private mapLearningPathFromBackend(path: any): LearningPath {
     return {
-      question_id: answer.questionId,
-      selected_option: answer.selectedOption,
-      time_spent: answer.timeSpent,
-      difficulty: answer.difficulty
+      id: path.id,
+      title: path.title,
+      description: path.description,
+      difficulty: path.difficulty,
+      estimatedTime: path.estimated_time || path.estimatedTime,
+      modules: path.modules,
+      icon: path.icon,
+      color: path.color,
+      progress: path.progress,
+      enrolled: path.enrolled,
+      lastAccessed: path.last_accessed ? new Date(path.last_accessed) : undefined,
+      completedModules: path.completed_modules || path.completedModules,
+      prerequisites: path.prerequisites,
+      skills: path.skills,
+      instructor: path.instructor,
+      rating: path.rating,
+      isNew: path.is_new || path.isNew,
+      isPopular: path.is_popular || path.isPopular,
+      category: path.category,
+      content: path.content ? path.content.map((module: any) => this.mapCourseModuleFromBackend(module)) : undefined
     };
   }
 
-  /**
-   * Helper method to map backend session to frontend format
-   */
-  private mapSessionFromBackend(session: any): EvaluationSession {
+  private mapCourseModuleFromBackend(module: any): CourseModule {
     return {
-      sessionId: session.session_id || session.sessionId,
-      userId: session.user_id || session.userId,
-      startTime: new Date(session.start_time || session.startTime),
-      currentQuestionIndex: session.current_question_index || session.currentQuestionIndex,
-      answers: session.answers || [],
-      isCompleted: session.is_completed || session.isCompleted
+      id: module.id,
+      title: module.title,
+      description: module.description,
+      estimatedTime: module.estimated_time || module.estimatedTime,
+      isCompleted: module.is_completed || module.isCompleted,
+      lessons: module.lessons ? module.lessons.map((lesson: any) => this.mapLessonFromBackend(lesson)) : [],
+      order: module.order
+    };
+  }
+
+  private mapLessonFromBackend(lesson: any): Lesson {
+    return {
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description,
+      type: lesson.type,
+      estimatedTime: lesson.estimated_time || lesson.estimatedTime,
+      isCompleted: lesson.is_completed || lesson.isCompleted,
+      isLocked: lesson.is_locked || lesson.isLocked,
+      order: lesson.order,
+      content: lesson.content,
+      totalPoints: lesson.total_points || lesson.totalPoints || 0,
+      completedPaths: lesson.completed_paths || lesson.completedPaths || 0,
+      currentStreak: lesson.current_streak || lesson.currentStreak || 0,
+      totalAchievements: lesson.total_achievements || lesson.totalAchievements || 0,
+      weeklyGoal: lesson.weekly_goal || lesson.weeklyGoal || 0,
+      weeklyProgress: lesson.weekly_progress || lesson.weeklyProgress || 0
+    };
+  }
+
+  private mapAchievementFromBackend(achievement: any): Achievement {
+    return {
+      id: achievement.id,
+      title: achievement.title,
+      description: achievement.description,
+      icon: achievement.icon,
+      unlockedAt: new Date(achievement.unlocked_at || achievement.unlockedAt),
+      points: achievement.points
+    };
+  }
+
+  private mapUserStatsFromBackend(stats: any): UserStats {
+    return {
+      totalPoints: stats.total_points || stats.totalPoints || 0,
+      completedPaths: stats.completed_paths || stats.completedPaths || 0,
+      currentStreak: stats.current_streak || stats.currentStreak || 0,
+      totalAchievements: stats.total_achievements || stats.totalAchievements || 0,
+      weeklyGoal: stats.weekly_goal || stats.weeklyGoal || 0,
+      weeklyProgress: stats.weekly_progress || stats.weeklyProgress || 0
+    };
+  }
+
+  private mapDailyTipFromBackend(tip: any): DailyTip {
+    return {
+      id: tip.id,
+      title: tip.title,
+      content: tip.content,
+      category: tip.category,
+      icon: tip.icon,
+      date: new Date(tip.date)
     };
   }
 }

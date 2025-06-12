@@ -2,6 +2,8 @@ import { Injectable, signal } from '@angular/core';
 import { Observable, of, BehaviorSubject, throwError } from 'rxjs';
 import { delay, map, catchError } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../../backend/app/environment/environment';
 
 export interface User {
   id: string;
@@ -26,6 +28,7 @@ export interface AuthResponse {
   message?: string;
   user?: User;
   token?: string;
+  timestamp?: Date;
 }
 
 export interface RegisterData {
@@ -35,10 +38,33 @@ export interface RegisterData {
   password: string;
 }
 
+export interface LoginData {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
+}
+
+export interface UserUpdate {
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  preferences?: {
+    theme: 'light' | 'dark';
+    language: 'es' | 'en';
+    notifications: boolean;
+  };
+}
+
+export interface PasswordChange {
+  currentPassword: string;
+  newPassword: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
+  private readonly apiUrl = `${environment  .apiUrl}/auth`;
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   private returnUrl: string = '/courses';
@@ -52,63 +78,8 @@ export class AuthService {
   public currentUser$ = this.currentUserSubject.asObservable();
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
 
-  // Base de datos mock de usuarios
-  private mockUsers: User[] = [
-    {
-      id: '1',
-      firstName: 'Juan',
-      lastName: 'Pérez',
-      email: 'juan@email.com',
-      avatar: '👨‍💻',
-      role: 'student',
-      enrolledCourses: ['basic-programming', 'web-development'],
-      completedCourses: [],
-      preferences: {
-        theme: 'light',
-        language: 'es',
-        notifications: true
-      },
-      createdAt: new Date('2024-01-15'),
-      lastLoginAt: new Date()
-    },
-    {
-      id: '2',
-      firstName: 'María',
-      lastName: 'García',
-      email: 'maria@email.com',
-      avatar: '👩‍💻',
-      role: 'student',
-      enrolledCourses: ['basic-programming'],
-      completedCourses: [],
-      preferences: {
-        theme: 'dark',
-        language: 'es',
-        notifications: false
-      },
-      createdAt: new Date('2024-02-10'),
-      lastLoginAt: new Date()
-    },
-    {
-      id: '3',
-      firstName: 'Admin',
-      lastName: 'Sistema',
-      email: 'admin@email.com',
-      avatar: '🔧',
-      role: 'admin',
-      enrolledCourses: [],
-      completedCourses: [],
-      preferences: {
-        theme: 'light',
-        language: 'es',
-        notifications: true
-      },
-      createdAt: new Date('2024-01-01'),
-      lastLoginAt: new Date()
-    }
-  ];
-
-  constructor(private router: Router) {
-    this.returnUrl = '/courses'; // Cambiar la URL por defecto
+  constructor(private router: Router, private http: HttpClient) {
+    this.returnUrl = '/courses';
     this.initializeAuth();
   }
 
@@ -132,54 +103,33 @@ export class AuthService {
   login(email: string, password: string, rememberMe: boolean = false): Observable<AuthResponse> {
     this.isLoading.set(true);
 
-    return of(null).pipe(
-      delay(1500), // Simular delay de red
-      map(() => {
-        // Validación de credenciales mock
-        const user = this.mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const loginData: LoginData = {
+      email,
+      password,
+      rememberMe
+    };
 
-        if (!user) {
-          throw new Error('Usuario no encontrado');
+    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, loginData).pipe(
+      map((response: AuthResponse) => {
+        if (response.success && response.user && response.token) {
+          // Guardar sesión si se seleccionó "recordarme"
+          if (rememberMe) {
+            localStorage.setItem('currentUser', JSON.stringify(response.user));
+            localStorage.setItem('authToken', response.token);
+          } else {
+            sessionStorage.setItem('currentUser', JSON.stringify(response.user));
+            sessionStorage.setItem('authToken', response.token);
+          }
+
+          this.setCurrentUser(response.user);
         }
-
-        // Simular validación de contraseña (en producción sería hash)
-        if (password.length < 6) {
-          throw new Error('Contraseña incorrecta');
-        }
-
-        // Actualizar última conexión
-        user.lastLoginAt = new Date();
-
-        // Generar token mock
-        const token = this.generateMockToken(user);
-
-        // Guardar sesión si se seleccionó "recordarme"
-        if (rememberMe) {
-          localStorage.setItem('currentUser', JSON.stringify(user));
-          localStorage.setItem('authToken', token);
-        } else {
-          sessionStorage.setItem('currentUser', JSON.stringify(user));
-          sessionStorage.setItem('authToken', token);
-        }
-
-        this.setCurrentUser(user);
-
-        return {
-          success: true,
-          message: 'Inicio de sesión exitoso',
-          user,
-          token
-        };
-      }),
-      catchError((error) => {
-        return of({
-          success: false,
-          message: error.message || 'Error en el inicio de sesión'
-        });
-      }),
-      map((response) => {
+        
         this.isLoading.set(false);
         return response;
+      }),
+      catchError((error) => {
+        this.isLoading.set(false);
+        return throwError(() => error);
       })
     );
   }
@@ -187,59 +137,28 @@ export class AuthService {
   register(userData: RegisterData): Observable<AuthResponse> {
     this.isLoading.set(true);
 
-    return of(null).pipe(
-      delay(2000), // Simular delay de registro
-      map(() => {
-        // Verificar si el email ya existe
-        const existingUser = this.mockUsers.find(u => 
-          u.email.toLowerCase() === userData.email.toLowerCase()
-        );
+    const registerData = {
+      first_name: userData.firstName,
+      last_name: userData.lastName,
+      email: userData.email,
+      password: userData.password
+    };
 
-        if (existingUser) {
-          throw new Error('Este email ya está registrado');
+    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, registerData).pipe(
+      map((response: AuthResponse) => {
+        if (response.success && response.user && response.token) {
+          // Guardar sesión automáticamente después del registro
+          sessionStorage.setItem('currentUser', JSON.stringify(response.user));
+          sessionStorage.setItem('authToken', response.token);
+          this.setCurrentUser(response.user);
         }
-
-        // Crear nuevo usuario
-        const newUser: User = {
-          id: (this.mockUsers.length + 1).toString(),
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          email: userData.email,
-          avatar: this.generateRandomAvatar(),
-          role: 'student',
-          enrolledCourses: [],
-          completedCourses: [],
-          preferences: {
-            theme: 'light',
-            language: 'es',
-            notifications: true
-          },
-          createdAt: new Date(),
-          lastLoginAt: new Date()
-        };
-
-        // Agregar a la base de datos mock
-        this.mockUsers.push(newUser);
-
-        // Generar token
-        const token = this.generateMockToken(newUser);
-
-        return {
-          success: true,
-          message: 'Cuenta creada exitosamente',
-          user: newUser,
-          token
-        };
-      }),
-      catchError((error) => {
-        return of({
-          success: false,
-          message: error.message || 'Error al crear la cuenta'
-        });
-      }),
-      map((response) => {
+        
         this.isLoading.set(false);
         return response;
+      }),
+      catchError((error) => {
+        this.isLoading.set(false);
+        return throwError(() => error);
       })
     );
   }
@@ -247,57 +166,38 @@ export class AuthService {
   socialLogin(provider: 'google' | 'github' | 'facebook'): Observable<AuthResponse> {
     this.isLoading.set(true);
 
-    return of(null).pipe(
-      delay(1000),
-      map(() => {
-        // Simular login social exitoso
-        const mockSocialUser: User = {
-          id: 'social_' + Date.now(),
-          firstName: 'Usuario',
-          lastName: provider.charAt(0).toUpperCase() + provider.slice(1),
-          email: `usuario.${provider}@email.com`,
-          avatar: this.getSocialAvatar(provider),
-          role: 'student',
-          enrolledCourses: [],
-          completedCourses: [],
-          preferences: {
-            theme: 'light',
-            language: 'es',
-            notifications: true
-          },
-          createdAt: new Date(),
-          lastLoginAt: new Date()
-        };
-
-        this.mockUsers.push(mockSocialUser);
-        const token = this.generateMockToken(mockSocialUser);
+    return this.http.post<AuthResponse>(`${this.apiUrl}/social-login`, { provider }).pipe(
+      map((response: AuthResponse) => {
+        if (response.success && response.user && response.token) {
+          sessionStorage.setItem('currentUser', JSON.stringify(response.user));
+          sessionStorage.setItem('authToken', response.token);
+          this.setCurrentUser(response.user);
+        }
         
-        sessionStorage.setItem('currentUser', JSON.stringify(mockSocialUser));
-        sessionStorage.setItem('authToken', token);
-        
-        this.setCurrentUser(mockSocialUser);
-
-        return {
-          success: true,
-          message: `Conectado con ${provider}`,
-          user: mockSocialUser,
-          token
-        };
-      }),
-      catchError(() => {
-        return of({
-          success: false,
-          message: `Error al conectar con ${provider}`
-        });
-      }),
-      map((response) => {
         this.isLoading.set(false);
         return response;
+      }),
+      catchError((error) => {
+        this.isLoading.set(false);
+        return throwError(() => error);
       })
     );
   }
 
   logout(): void {
+    // Llamar al endpoint de logout
+    this.http.post(`${this.apiUrl}/logout`, {}).subscribe({
+      next: () => {
+        this.clearSession();
+      },
+      error: () => {
+        // Limpiar sesión local incluso si falla el endpoint
+        this.clearSession();
+      }
+    });
+  }
+
+  private clearSession(): void {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('authToken');
     sessionStorage.removeItem('currentUser');
@@ -308,88 +208,58 @@ export class AuthService {
   }
 
   forgotPassword(email: string): Observable<AuthResponse> {
-    return of(null).pipe(
-      delay(1000),
-      map(() => {
-        const user = this.mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-        
-        if (!user) {
-          throw new Error('Email no encontrado');
-        }
-
-        // En producción: enviar email real
-        console.log(`Email de recuperación enviado a: ${email}`);
-
-        return {
-          success: true,
-          message: 'Email de recuperación enviado'
-        };
-      }),
+    return this.http.post<AuthResponse>(`${this.apiUrl}/forgot-password`, { email }).pipe(
       catchError((error) => {
-        return of({
-          success: false,
-          message: error.message || 'Error al enviar email'
-        });
+        return throwError(() => error);
       })
     );
   }
 
-  updateProfile(userData: Partial<User>): Observable<AuthResponse> {
+  updateProfile(userData: UserUpdate): Observable<AuthResponse> {
     const currentUser = this.currentUser();
     
     if (!currentUser) {
       return throwError(() => new Error('Usuario no autenticado'));
     }
 
-    return of(null).pipe(
-      delay(800),
-      map(() => {
-        const updatedUser = { ...currentUser, ...userData };
-        
-        // Actualizar en mock database
-        const userIndex = this.mockUsers.findIndex(u => u.id === currentUser.id);
-        if (userIndex !== -1) {
-          this.mockUsers[userIndex] = updatedUser;
+    const updateData = {
+      first_name: userData.firstName,
+      last_name: userData.lastName,
+      avatar: userData.avatar,
+      preferences: userData.preferences
+    };
+
+    return this.http.put<AuthResponse>(`${this.apiUrl}/profile/${currentUser.id}`, updateData).pipe(
+      map((response: AuthResponse) => {
+        if (response.success && response.user) {
+          // Actualizar sesión local
+          const storage = localStorage.getItem('currentUser') ? localStorage : sessionStorage;
+          storage.setItem('currentUser', JSON.stringify(response.user));
+          this.setCurrentUser(response.user);
         }
-
-        // Actualizar sesión
-        const storage = localStorage.getItem('currentUser') ? localStorage : sessionStorage;
-        storage.setItem('currentUser', JSON.stringify(updatedUser));
-        
-        this.setCurrentUser(updatedUser);
-
-        return {
-          success: true,
-          message: 'Perfil actualizado exitosamente',
-          user: updatedUser
-        };
+        return response;
+      }),
+      catchError((error) => {
+        return throwError(() => error);
       })
     );
   }
 
   changePassword(currentPassword: string, newPassword: string): Observable<AuthResponse> {
-    return of(null).pipe(
-      delay(1000),
-      map(() => {
-        // Simular validación de contraseña actual
-        if (currentPassword.length < 6) {
-          throw new Error('Contraseña actual incorrecta');
-        }
+    const currentUser = this.currentUser();
+    
+    if (!currentUser) {
+      return throwError(() => new Error('Usuario no autenticado'));
+    }
 
-        if (newPassword.length < 8) {
-          throw new Error('La nueva contraseña debe tener al menos 8 caracteres');
-        }
+    const passwordData: PasswordChange = {
+      currentPassword,
+      newPassword
+    };
 
-        return {
-          success: true,
-          message: 'Contraseña actualizada exitosamente'
-        };
-      }),
+    return this.http.put<AuthResponse>(`${this.apiUrl}/change-password/${currentUser.id}`, passwordData).pipe(
       catchError((error) => {
-        return of({
-          success: false,
-          message: error.message
-        });
+        return throwError(() => error);
       })
     );
   }
@@ -412,36 +282,14 @@ export class AuthService {
     return user?.role === role;
   }
 
+  getAuthToken(): string | null {
+    return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  }
+
   private setCurrentUser(user: User | null): void {
     this.currentUser.set(user);
     this.isAuthenticated.set(!!user);
     this.currentUserSubject.next(user);
     this.isAuthenticatedSubject.next(!!user);
-  }
-
-  private generateMockToken(user: User): string {
-    const payload = {
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      exp: Date.now() + (24 * 60 * 60 * 1000) // 24 horas
-    };
-    
-    // En producción sería un JWT real
-    return 'mock_jwt_' + btoa(JSON.stringify(payload));
-  }
-
-  private generateRandomAvatar(): string {
-    const avatars = ['👨‍💻', '👩‍💻', '🧑‍💻', '👨‍🎓', '👩‍🎓', '🧑‍🎓', '🤓', '😊', '🚀', '💡'];
-    return avatars[Math.floor(Math.random() * avatars.length)];
-  }
-
-  private getSocialAvatar(provider: string): string {
-    const avatars = {
-      google: '🔍',
-      github: '🐙',
-      facebook: '📘'
-    };
-    return avatars[provider as keyof typeof avatars] || '👤';
   }
 }

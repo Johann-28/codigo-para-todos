@@ -7,7 +7,8 @@ import { Achievement } from '../models/home/achievement.interface';
 import { DailyTip } from '../models/home/daily-tip.interface';
 import { LearningPath } from '../models/home/learning-path.interface';
 import { UserStats } from '../models/home/user-stats';
-import { HomeService } from '../shared/home.service';
+import { HomeService } from '../shared/diagnostic-evaluation.service';
+import { AuthService } from '../auth/auth.service';
 
 @Component({
   selector: 'app-home',
@@ -20,6 +21,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private router = inject(Router);
   private homeService = inject(HomeService);
+  private authService = inject(AuthService);
+
 
   // Signals for reactive state management
   evaluationResult = signal<EvaluationResult | null>(null);
@@ -61,6 +64,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  currentUser = computed(() => this.authService.currentUser());
+
+
   private loadEvaluationResult() {
     // Try to get result from localStorage (backup from diagnostic evaluation)
     const storedResult = localStorage.getItem('evaluationResult');
@@ -74,53 +80,66 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  private loadDashboardData() {
-    this.isLoading.set(true);
+private loadDashboardData() {
+  this.isLoading.set(true);
 
-    // Load all data in parallel using forkJoin
-    const evaluationResult = this.evaluationResult();
-    const evaluationResultOrUndefined = evaluationResult === null ? undefined : evaluationResult;
-    
-    forkJoin({
-      learningPaths: this.homeService.getLearningPaths(),
-      recommendedPaths: this.homeService.getRecommendedPaths(evaluationResultOrUndefined),
-      recentAchievements: this.homeService.getRecentAchievements(3),
-      userStats: this.homeService.getUserStats(),
-      dailyTip: this.homeService.getDailyTip()
-    }).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (data) => {
-        this.learningPaths.set(data.learningPaths);
-        this.recommendedPaths.set(data.recommendedPaths);
-        this.recentAchievements.set(data.recentAchievements);
-        this.userStats.set(data.userStats);
-        this.dailyTip.set(data.dailyTip);
-        this.isLoading.set(false);
+  const user = this.currentUser();
+  if (!user) {
+    this.router.navigate(['/auth/login']);
+    return;
+  }
+
+  // Load all data in parallel using forkJoin
+  const evaluationResult = this.evaluationResult();
+  
+  forkJoin({
+    learningPaths: this.homeService.getLearningPaths(),
+    recommendedPaths: this.homeService.getRecommendedPaths(user.id, evaluationResult || undefined),
+    recentAchievements: this.homeService.getRecentAchievements(user.id, 3),
+    userStats: this.homeService.getUserStats(user.id),
+    dailyTip: this.homeService.getDailyTip()
+  }).pipe(
+    takeUntil(this.destroy$)
+  ).subscribe({
+    next: (data) => {
+      this.learningPaths.set(data.learningPaths);
+      this.recommendedPaths.set(data.recommendedPaths);
+      this.recentAchievements.set(data.recentAchievements);
+      this.userStats.set(data.userStats);
+      this.dailyTip.set(data.dailyTip);
+      this.isLoading.set(false);
+    },
+    error: (error) => {
+      console.error('Error loading dashboard data:', error);
+      this.isLoading.set(false);
+    }
+  });
+}
+
+
+// Método startPath corregido
+startPath(pathId: string) {
+  const user = this.currentUser();
+  if (!user) {
+    this.router.navigate(['/auth/login']);
+    return;
+  }
+
+  // Enroll user in path first, then navigate
+  this.homeService.enrollInPath(user.id, pathId)
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: () => {
+        // Navigate to learning path
+        this.router.navigate(['/courses', pathId]);
       },
       error: (error) => {
-        console.error('Error loading dashboard data:', error);
-        this.isLoading.set(false);
+        console.error('Error enrolling in path:', error);
+        // Still navigate even if enrollment fails (for demo purposes)
+        this.router.navigate(['/courses', pathId]);
       }
     });
-  }
-
-  startPath(pathId: string) {
-    // Enroll user in path first, then navigate
-    this.homeService.enrollInPath(pathId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          // Navigate to learning path
-          this.router.navigate(['/courses', pathId]);
-        },
-        error: (error) => {
-          console.error('Error enrolling in path:', error);
-          // Still navigate even if enrollment fails (for demo purposes)
-          this.router.navigate(['/courses', pathId]);
-        }
-      });
-  }
+}
 
   continueLearning() {
     // Find the path with highest progress or navigate to first recommended

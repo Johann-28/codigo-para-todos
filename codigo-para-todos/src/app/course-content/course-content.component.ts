@@ -1,17 +1,10 @@
 import { Component, OnInit, OnDestroy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, takeUntil, switchMap, firstValueFrom } from 'rxjs';
-import { HomeService, LearningPath, CourseModule } from '../shared/home.service';
+import { Subject, takeUntil, switchMap, firstValueFrom, forkJoin, of, tap } from 'rxjs';
 import { Lesson } from '../models/course-content/lesson.interface';
-
-interface CourseProgressSummary {
-  totalLessons: number;
-  completedLessons: number;
-  progressPercentage: number;
-  currentModule: string;
-  nextLesson: Lesson | null;
-}
+import { AuthService } from '../auth/auth.service';
+import { HomeService, LearningPath, CourseModule, CourseProgress } from '../shared/diagnostic-evaluation.service';
 
 @Component({
   selector: 'app-course-content',
@@ -26,18 +19,20 @@ export class CourseContentComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private homeService = inject(HomeService);
+  private authService = inject(AuthService);
 
   // Signals for reactive state management
   courseId = signal<string>('');
   course = signal<LearningPath | null>(null);
   modules = signal<CourseModule[]>([]);
-  courseProgress = signal<CourseProgressSummary | null>(null);
+  courseProgress = signal<CourseProgress | null>(null);
   selectedModule = signal<CourseModule | null>(null);
   selectedLesson = signal<Lesson | null>(null);
   isLoading = signal(false);
   isLessonLoading = signal(false);
   expandedModules = signal<Set<string>>(new Set());
   showSidebar = signal(true);
+  error = signal<string | null>(null);
 
   // Computed values
   totalModules = computed(() => this.modules().length);
@@ -75,69 +70,70 @@ export class CourseContentComponent implements OnInit, OnDestroy {
     return null;
   });
 
- ngOnInit() {
-  this.route.params.pipe(
-    takeUntil(this.destroy$),
-    switchMap(params => {
-      const courseId = params['id'];
-      this.courseId.set(courseId);
-      return this.loadCourseData(courseId); 
-    })
-  ).subscribe({
-    next: ([modules, progress]: any) => {
-      if (modules && progress) {
-        this.modules.set(modules);
-        this.courseProgress.set(progress);
+  currentUser = computed(() => this.authService.currentUser());
 
-        // Auto-expand first incomplete module
-        this.autoExpandCurrentModule();
-
-        // Select first lesson if none selected
-        if (modules.length > 0 && !this.selectedLesson()) {
-          const firstLesson = modules[0].lessons[0];
-          if (firstLesson) {
-            this.selectLesson(firstLesson, modules[0]);
-          }
-        }
+  ngOnInit() {
+    this.route.params.pipe(
+      takeUntil(this.destroy$),
+      switchMap(params => {
+        const courseId = params['id'];
+        this.courseId.set(courseId);
+        return this.loadCourseData(courseId); 
+      })
+    ).subscribe({
+      next: () => {
+        console.log('Course data loaded successfully');
+        this.isLoading.set(false);
+      },
+      error: (error: any) => {
+        console.error('Error loading course data:', error);
+        this.error.set('Error loading course content. Please try again.');
+        this.isLoading.set(false);
       }
-      this.isLoading.set(false);
-    },
-    error: (error: any) => {
-      console.error('Error loading course data:', error);
-      this.isLoading.set(false);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private loadCourseData(courseId: string) {
+    this.isLoading.set(true);
+    this.error.set(null);
+
+    const user = this.currentUser();
+    if (!user) {
+      this.error.set('Please log in to access course content.');
+      return this.router.navigate(['/auth/login']);
     }
-  });
-}
 
-ngOnDestroy(): void {
-  this.destroy$.next();
-  this.destroy$.complete();
-}
-
-
-private loadCourseData(courseId: string) {
-  this.isLoading.set(true);
-
-  return this.homeService.getLearningPaths().pipe(
+    // Load course details, content, and progress in parallel
+ return forkJoin({
+    paths: this.homeService.getLearningPaths(),
+    content: this.homeService.getCourseContent(courseId),
+    progress: this.homeService.getCourseProgress(user.id, courseId)
+  }).pipe(
     takeUntil(this.destroy$),
-    switchMap(paths => {
+    tap(({ paths, content, progress }) => {
       const course = paths.find(p => p.id === courseId);
       if (!course) {
         this.router.navigate(['/404']);
-        return [];
+        throw new Error('Course not found');
       }
 
       this.course.set(course);
+      this.modules.set(content);
+      this.courseProgress.set(progress);
 
-      return this.homeService.getCourseContent(courseId).pipe(
-        switchMap(modules =>
-          this.homeService.getCourseProgress(courseId).pipe(
-            switchMap(progress => {
-              return [[modules, progress]];
-            })
-          )
-        )
-      );
+      this.autoExpandCurrentModule();
+
+      if (content.length > 0 && !this.selectedLesson()) {
+        const firstLesson = content[0].lessons[0];
+        if (firstLesson) {
+          this.selectLesson(firstLesson, content[0]);
+        }
+      }
     })
   );
 }
@@ -175,7 +171,7 @@ private loadCourseData(courseId: string) {
     this.selectedLesson.set(lesson);
     this.selectedModule.set(module);
 
-    // Load detailed lesson content
+    // Load detailed lesson content from backend
     this.homeService.getLessonContent(lesson.id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -187,6 +183,7 @@ private loadCourseData(courseId: string) {
         },
         error: (error) => {
           console.error('Error loading lesson:', error);
+          this.error.set('Error loading lesson content.');
           this.isLessonLoading.set(false);
         }
       });
@@ -194,13 +191,17 @@ private loadCourseData(courseId: string) {
 
   completeLesson() {
     const lesson = this.selectedLesson();
-    if (!lesson || lesson.isCompleted) return;
+    const user = this.currentUser();
+    
+    if (!lesson || lesson.isCompleted || !user) return;
 
-    this.homeService.completLesson(lesson.id)
+    this.isLoading.set(true);
+
+    this.homeService.completeLesson(user.id, lesson.id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          // Update lesson status
+          // Update lesson status locally
           lesson.isCompleted = true;
           this.selectedLesson.set({ ...lesson });
 
@@ -213,14 +214,49 @@ private loadCourseData(courseId: string) {
           }));
           this.modules.set(updatedModules);
 
+          // Update overall path progress
+          this.updatePathProgress();
+
           // Refresh course progress
           this.refreshProgress();
 
           // Auto-advance to next lesson
           this.goToNextLesson();
+
+          this.isLoading.set(false);
         },
         error: (error) => {
           console.error('Error completing lesson:', error);
+          this.error.set('Error completing lesson. Please try again.');
+          this.isLoading.set(false);
+        }
+      });
+  }
+
+  private updatePathProgress() {
+    const user = this.currentUser();
+    const courseId = this.courseId();
+    const modules = this.modules();
+
+    if (!user || !courseId) return;
+
+    // Calculate overall progress
+    const totalLessons = modules.reduce((total, module) => total + module.lessons.length, 0);
+    const completedLessons = modules.reduce((total, module) => 
+      total + module.lessons.filter(l => l.isCompleted).length, 0
+    );
+    
+    const progressPercentage = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
+
+    // Update progress in backend
+    this.homeService.updatePathProgress(user.id, courseId, progressPercentage)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          console.log('Progress updated successfully');
+        },
+        error: (error) => {
+          console.error('Error updating progress:', error);
         }
       });
   }
@@ -238,20 +274,25 @@ private loadCourseData(courseId: string) {
     // Try next lesson in current module
     if (currentLessonIndex < currentModule.lessons.length - 1) {
       const nextLesson = currentModule.lessons[currentLessonIndex + 1];
-      this.selectLesson(nextLesson, currentModule);
-      return;
+      if (this.canAccessLesson(nextLesson, currentModule)) {
+        this.selectLesson(nextLesson, currentModule);
+        return;
+      }
     }
 
     // Try first lesson of next module
     if (currentModuleIndex < modules.length - 1) {
       const nextModule = modules[currentModuleIndex + 1];
       if (nextModule.lessons.length > 0) {
-        // Auto-expand next module
-        const expanded = new Set(this.expandedModules());
-        expanded.add(nextModule.id);
-        this.expandedModules.set(expanded);
-        
-        this.selectLesson(nextModule.lessons[0], nextModule);
+        const firstLesson = nextModule.lessons[0];
+        if (this.canAccessLesson(firstLesson, nextModule)) {
+          // Auto-expand next module
+          const expanded = new Set(this.expandedModules());
+          expanded.add(nextModule.id);
+          this.expandedModules.set(expanded);
+          
+          this.selectLesson(firstLesson, nextModule);
+        }
       }
     }
   }
@@ -290,11 +331,18 @@ private loadCourseData(courseId: string) {
 
   private refreshProgress() {
     const courseId = this.courseId();
-    if (courseId) {
-      this.homeService.getCourseProgress(courseId)
+    const user = this.currentUser();
+    
+    if (courseId && user) {
+      this.homeService.getCourseProgress(user.id, courseId)
         .pipe(takeUntil(this.destroy$))
-        .subscribe(progress => {
-          this.courseProgress.set(progress);
+        .subscribe({
+          next: (progress) => {
+            this.courseProgress.set(progress);
+          },
+          error: (error) => {
+            console.error('Error refreshing progress:', error);
+          }
         });
     }
   }
@@ -353,5 +401,13 @@ private loadCourseData(courseId: string) {
     // Check if previous lesson is completed
     const previousLesson = module.lessons[lessonIndex - 1];
     return previousLesson?.isCompleted || false;
+  }
+
+  retryLoading() {
+    this.error.set(null);
+    const courseId = this.courseId();
+    if (courseId) {
+      this.loadCourseData(courseId);
+    }
   }
 }
