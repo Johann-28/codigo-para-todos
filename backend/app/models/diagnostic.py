@@ -4,7 +4,7 @@ Models for questions, answers, sessions, and evaluation results
 """
 
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 from datetime import datetime
 from app.models.common import DifficultyLevel, BaseResponse
 
@@ -63,3 +63,41 @@ class EvaluationResultResponse(BaseResponse):
 class AdaptiveQuestionRequest(BaseModel):
     """Request for adaptive questions"""
     session_id: str = Field(..., description="Current session ID")
+
+class AdaptiveAnswer(BaseModel):
+    """Model for adaptive answer context"""
+    question_id: int
+    selected_option: int
+    is_correct: bool
+    difficulty: str
+    time_spent: int
+
+class AlternativePath(BaseModel):
+    """Model for alternative question paths"""
+    question_id: int
+    question_text: str
+    difficulty: str
+    topic: str
+    options: List[str]
+    correct_answer: int
+    condition: str  # 'if_correct' or 'if_incorrect'
+    explanation: str
+    would_lead_to: str
+
+class GetNextAdaptiveQuestionRequest(BaseModel):
+    """Request model for getting next adaptive question"""
+    answers: List[AdaptiveAnswer]
+    assume_answer: Optional[Dict[str, Any]] = None
+
+class GetAlternativePathsRequest(BaseModel):
+    """Request model for getting alternative paths"""
+    answers: List[AdaptiveAnswer]
+    current_question_id: int
+
+class NextAdaptiveQuestionResponse(BaseModel):
+    """Response model for next adaptive question"""
+    question: Optional[Question] = None
+
+class AlternativePathsResponse(BaseModel):
+    """Response model for alternative paths"""
+    alternatives: List[AlternativePath]

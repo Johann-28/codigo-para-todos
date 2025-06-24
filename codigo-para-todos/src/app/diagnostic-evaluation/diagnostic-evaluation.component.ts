@@ -7,11 +7,12 @@ import { AuthService } from '../auth/auth.service';
 import { EvaluationResult } from '../models/diagnostic-evaluation';
 import { DiagnosticEvaluationService, Question, EvaluationSession, question_id, SubmitAnswerResponse, EvaluationResultResponse } from '../shared/home.service';
 import { AnswerReviewItem } from '../models/diagnostic-evaluation/answer-review-item';
+import { DiagnosticTreeComponent } from '../diagnostic-tree-component/diagnostic-tree.component';
 
 @Component({
   selector: 'app-diagnostic-evaluation',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DiagnosticTreeComponent],
   templateUrl: './diagnostic-evaluation.component.html',
   styleUrls: ['./diagnostic-evaluation.component.scss']
 })

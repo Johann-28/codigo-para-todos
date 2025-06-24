@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of, BehaviorSubject } from 'rxjs';
 import { delay, map, catchError } from 'rxjs/operators';
 import { environment } from '../../../../backend/app/environment/environment';
+import { AdaptiveAnswer } from '../models/diagnostic-evaluation/diagnostic-tree/adaptative-answer';
+import { AlternativePath } from '../models/diagnostic-evaluation/diagnostic-tree/alternative-path';
 
 export interface Question {
   id: number;
@@ -233,4 +235,51 @@ export class DiagnosticEvaluationService {
       is_completed: session.is_completed || session.isCompleted
     };
   }
+
+  
+getNextAdaptiveQuestion(answers: AdaptiveAnswer[], assumeAnswer?: { questionId: number, selectedOption: number, isCorrect: boolean }): Observable<Question | null> {
+  const payload = {
+    answers: answers.map(answer => ({
+      question_id: answer.questionId,        // Cambiar a snake_case
+      selected_option: answer.selectedOption, // Cambiar a snake_case
+      is_correct: answer.isCorrect,          // Cambiar a snake_case
+      difficulty: answer.difficulty,
+      time_spent: answer.timeSpent           // Cambiar a snake_case
+    })),
+    assume_answer: assumeAnswer ? {         // Cambiar a snake_case
+      questionId: assumeAnswer.questionId,
+      selectedOption: assumeAnswer.selectedOption,
+      isCorrect: assumeAnswer.isCorrect
+    } : undefined
+  };
+  
+  return this.http.post<{ question: Question | null }>(`${this.apiUrl}/get-next-adaptive-question`, payload).pipe(
+    map(response => response.question),
+    catchError((error) => {
+      console.error('Error getting next adaptive question:', error);
+      return of(null);
+    })
+  );
+}
+
+getAlternativePathInfo(answers: AdaptiveAnswer[], currentQuestionId: number): Observable<AlternativePath[]> {
+  const payload = {
+    answers: answers.map(answer => ({
+      question_id: answer.questionId,        // Cambiar a snake_case
+      selected_option: answer.selectedOption, // Cambiar a snake_case
+      is_correct: answer.isCorrect,          // Cambiar a snake_case
+      difficulty: answer.difficulty,
+      time_spent: answer.timeSpent           // Cambiar a snake_case
+    })),
+    current_question_id: currentQuestionId    // Cambiar a snake_case
+  };
+  
+  return this.http.post<{ alternatives: AlternativePath[] }>(`${this.apiUrl}/get-alternative-paths`, payload).pipe(
+    map(response => response.alternatives),
+    catchError((error) => {
+      console.error('Error getting alternative paths:', error);
+      return of([]);
+    })
+  );
+}
 }

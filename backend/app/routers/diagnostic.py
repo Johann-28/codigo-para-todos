@@ -7,7 +7,7 @@ import asyncio
 from typing import List
 from fastapi import APIRouter, HTTPException, status, Query
 from app.models.diagnostic import (
-    Question, EvaluationSession, EvaluationResult, 
+    AlternativePath, AlternativePathsResponse, GetAlternativePathsRequest, GetNextAdaptiveQuestionRequest, NextAdaptiveQuestionResponse, Question, EvaluationSession, EvaluationResult, 
     StartEvaluationRequest, SubmitAnswerRequest, SubmitAnswerResponse,
     EvaluationResultResponse, AdaptiveQuestionRequest, UserAnswer
 )
@@ -205,4 +205,109 @@ async def get_session(session_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener sesión"
+        )
+    
+
+@router.post("/get-next-adaptive-question", response_model=NextAdaptiveQuestionResponse)
+async def get_next_adaptive_question(request: GetNextAdaptiveQuestionRequest):
+    """
+    Get next adaptive question based on answer context
+    Used for tree visualization and what-if scenarios
+    
+    - **answers**: List of previous answers for context
+    - **assume_answer**: Optional assumed answer to simulate different paths
+    """
+    # Simulate network delay
+    if settings.ENABLE_MOCK_DATA:
+        await asyncio.sleep(0.3)
+    
+    try:
+        # Convert request data to internal format
+        answers_data = []
+        for answer in request.answers:
+            answers_data.append({
+                'question_id': answer.question_id,
+                'selected_option': answer.selected_option,
+                'is_correct': answer.is_correct,
+                'difficulty': answer.difficulty,
+                'time_spent': answer.time_spent
+            })
+        
+        assume_answer_data = None
+        if request.assume_answer:
+            assume_answer_data = {
+                'questionId': request.assume_answer.get('questionId'),
+                'selectedOption': request.assume_answer.get('selectedOption'),
+                'isCorrect': request.assume_answer.get('isCorrect')
+            }
+        
+        # Get next question using service
+        next_question = await diagnostic_service.get_next_adaptive_question_context(
+            answers_data, 
+            assume_answer_data
+        )
+        
+        return NextAdaptiveQuestionResponse(question=next_question)
+        
+    except Exception as e:
+        print(f"Error in get_next_adaptive_question endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al obtener siguiente pregunta adaptativa"
+        )
+
+@router.post("/get-alternative-paths", response_model=AlternativePathsResponse)
+async def get_alternative_paths(request: GetAlternativePathsRequest):
+    """
+    Get alternative path information for tree visualization
+    Shows what would happen with different answer choices
+    
+    - **answers**: List of previous answers for context
+    - **current_question_id**: ID of the current question to analyze alternatives for
+    """
+    # Simulate network delay
+    if settings.ENABLE_MOCK_DATA:
+        await asyncio.sleep(0.4)
+    
+    try:
+        # Convert request data to internal format
+        answers_data = []
+        for answer in request.answers:
+            answers_data.append({
+                'question_id': answer.question_id,
+                'selected_option': answer.selected_option,
+                'is_correct': answer.is_correct,
+                'difficulty': answer.difficulty,
+                'time_spent': answer.time_spent
+            })
+        
+        # Get alternative paths using service
+        alternatives_data = await diagnostic_service.get_alternative_paths_info(
+            answers_data,
+            request.current_question_id
+        )
+        
+        # Convert to response format
+        alternatives = []
+        for alt_data in alternatives_data:
+            alternative = AlternativePath(
+                question_id=alt_data['question_id'],
+                question_text=alt_data['question_text'],
+                difficulty=alt_data['difficulty'],
+                topic=alt_data['topic'],
+                options=alt_data['options'],
+                correct_answer=alt_data['correct_answer'],
+                condition=alt_data['condition'],
+                explanation=alt_data['explanation'],
+                would_lead_to=alt_data['would_lead_to']
+            )
+            alternatives.append(alternative)
+        
+        return AlternativePathsResponse(alternatives=alternatives)
+        
+    except Exception as e:
+        print(f"Error in get_alternative_paths endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al obtener caminos alternativos"
         )

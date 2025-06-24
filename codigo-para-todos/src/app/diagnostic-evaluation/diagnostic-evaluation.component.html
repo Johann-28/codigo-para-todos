@@ -249,6 +249,11 @@
           </div>
         </article>
       </section>
+
+      <!-- Decision Tree -->
+      <section class="diagnostic-tree-section" *ngIf="showResults() && getAnswerReview().length > 0">
+        <app-diagnostic-tree [answerReview]="getAnswerReview()"></app-diagnostic-tree>
+      </section>
     </article>
   </main>
 

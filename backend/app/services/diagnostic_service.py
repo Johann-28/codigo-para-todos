@@ -529,6 +529,135 @@ class DiagnosticService:
     def _generate_session_id(self) -> str:
         """Generate unique session ID"""
         return f"eval_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:8]}"
+    
+    async def get_next_adaptive_question_context(self, answers: List[dict], assume_answer: Optional[dict] = None) -> Optional[Question]:
+        """
+        Get next adaptive question based on answer context and optional assumed answer
+        Used for tree visualization and what-if scenarios
+        """
+        try:
+            # Create a simulated session with the provided answers
+            simulated_answers = []
+            
+            for answer_data in answers:
+                answer = UserAnswer(
+                    question_id=answer_data['question_id'],
+                    selected_option=answer_data['selected_option'],
+                    time_spent=answer_data['time_spent'],
+                    difficulty=answer_data['difficulty']
+                )
+                simulated_answers.append(answer)
+            
+            # If assume_answer is provided, add it to the context
+            if assume_answer:
+                assumed_answer = UserAnswer(
+                    question_id=assume_answer['questionId'],
+                    selected_option=assume_answer['selectedOption'],
+                    time_spent=5000,  # Default time
+                    difficulty='intermediate'  # Default difficulty
+                )
+                simulated_answers.append(assumed_answer)
+            
+            # Create temporary session for analysis
+            temp_session = EvaluationSession(
+                session_id=f"temp_{datetime.now().timestamp()}",
+                user_id="temp_user",
+                start_time=datetime.now(),
+                current_question_index=len(simulated_answers),
+                answers=simulated_answers,
+                is_completed=False
+            )
+            
+            # Use existing adaptive logic to determine next question
+            next_question = await self._get_next_adaptive_question(temp_session)
+            return next_question
+            
+        except Exception as e:
+            print(f"Error getting next adaptive question: {str(e)}")
+            return None
+
+    async def get_alternative_paths_info(self, answers: List[dict], current_question_id: int) -> List[dict]:
+        """
+        Get alternative path information for tree visualization
+        Shows what would happen with different answers
+        """
+        try:
+            alternatives = []
+            
+            # Get current question details
+            current_question_data = self.question_repo.find_by_id(current_question_id)
+            if not current_question_data:
+                return alternatives
+            
+            current_question = self._dict_to_question(current_question_data)
+            
+            # Simulate both correct and incorrect answers
+            for is_correct in [True, False]:
+                # Create assumed answer
+                assumed_answer = {
+                    'questionId': current_question_id,
+                    'selectedOption': current_question.correct_answer if is_correct else (current_question.correct_answer + 1) % len(current_question.options),
+                    'isCorrect': is_correct
+                }
+                
+                # Get next question for this scenario
+                next_question = await self.get_next_adaptive_question_context(answers, assumed_answer)
+                
+                if next_question:
+                    # Determine the condition and explanation
+                    condition = 'if_correct' if is_correct else 'if_incorrect'
+                    
+                    if is_correct:
+                        explanation = "Si hubieras respondido correctamente, habrías avanzado a una pregunta más desafiante o del mismo nivel."
+                        would_lead_to = f"Camino hacia {next_question.difficulty} - {next_question.topic}"
+                    else:
+                        explanation = "Si hubieras respondido incorrectamente, habrías recibido una pregunta más básica para reforzar conceptos."
+                        would_lead_to = f"Camino de refuerzo - {next_question.topic}"
+                    
+                    alternative = {
+                        'question_id': next_question.id,
+                        'question_text': next_question.question,
+                        'difficulty': next_question.difficulty,
+                        'topic': next_question.topic,
+                        'options': next_question.options,
+                        'correct_answer': next_question.correct_answer,
+                        'condition': condition,
+                        'explanation': explanation,
+                        'would_lead_to': would_lead_to
+                    }
+                    
+                    alternatives.append(alternative)
+            
+            return alternatives
+            
+        except Exception as e:
+            print(f"Error getting alternative paths: {str(e)}")
+            return []
+
+    def _determine_difficulty_from_performance(self, answers: List[dict]) -> str:
+        """Helper method to determine difficulty based on performance"""
+        if not answers:
+            return 'basic'
+        
+        correct_count = sum(1 for answer in answers if answer.get('is_correct', False))
+        accuracy = correct_count / len(answers)
+        
+        if accuracy >= 0.8:
+            return 'advanced'
+        elif accuracy >= 0.6:
+            return 'intermediate'
+        else:
+            return 'basic'
+
+    def _get_diverse_topic_question(self, available_questions: List[dict], answered_topics: List[str]) -> dict:
+        """Get a question from a topic not recently covered"""
+        # Prefer questions from topics not recently answered
+        for question in available_questions:
+            if question.get('topic') not in answered_topics[-3:]:  # Avoid last 3 topics
+                return question
+        
+        # If all topics are recent, return first available
+        return available_questions[0] if available_questions else None
 
 
 # Global service instance

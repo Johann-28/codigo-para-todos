@@ -1,0 +1,128 @@
+<div class="diagnostic-tree-container">
+  <div class="tree-header">
+    <h3>🌳 Árbol de Decisiones del Examen Diagnóstico</h3>
+    <p>Visualiza tu camino de aprendizaje y las alternativas no exploradas</p>
+    <div class="loading-indicator" *ngIf="isLoadingAlternatives()">
+      <div class="spinner"></div>
+      <span>Cargando caminos alternativos...</span>
+    </div>
+  </div>
+
+  <div class="tree-legend">
+    <div class="legend-item">
+      <div class="legend-node correct"></div>
+      <span>Respuesta Correcta</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-node incorrect"></div>
+      <span>Respuesta Incorrecta</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line solid"></div>
+      <span>Camino Tomado</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-line dashed"></div>
+      <span>Camino Alternativo</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-node alternative"></div>
+      <span>Pregunta Alternativa (Click para ver)</span>
+    </div>
+  </div>
+
+  <div class="tree-canvas-container">
+    <canvas #treeCanvas class="tree-canvas"></canvas>
+  </div>
+
+  <!-- Selected node details -->
+  <div class="node-details" *ngIf="selectedNode">
+    <div class="details-card">
+      <div class="details-header">
+        <h4>Pregunta {{ treeNodes.indexOf(selectedNode) + 1 }}</h4>
+        <span class="difficulty-badge" [style.background-color]="getDifficultyColor(selectedNode.difficulty)">
+          {{ selectedNode.difficulty }}
+        </span>
+      </div>
+      <div class="details-content">
+        <p class="question-text">{{ selectedNode.questionText }}</p>
+        <div class="answer-info">
+          <div class="answer-row">
+            <span class="label">Tu respuesta:</span>
+            <span class="value" [class.correct]="selectedNode.isCorrect" [class.incorrect]="!selectedNode.isCorrect">
+              Opción {{ selectedNode.userAnswer + 1 }} 
+              <span class="status-icon">{{ selectedNode.isCorrect ? '✓' : '✗' }}</span>
+            </span>
+          </div>
+          <div class="answer-row" *ngIf="!selectedNode.isCorrect">
+            <span class="label">Respuesta correcta:</span>
+            <span class="value correct">Opción {{ selectedNode.correctAnswer + 1 }}</span>
+          </div>
+          <div class="answer-row">
+            <span class="label">Tiempo:</span>
+            <span class="value">{{ selectedNode.timeTaken / 1000 | number:'1.1-1' }}s</span>
+          </div>
+          <div class="answer-row">
+            <span class="label">Tema:</span>
+            <span class="value">{{ selectedNode.topic }}</span>
+          </div>
+        </div>
+      </div>
+      <button class="close-details" (click)="selectedNode = null">×</button>
+    </div>
+  </div>
+
+  <!-- Selected alternative details -->
+  <div class="alternative-details" *ngIf="selectedAlternative">
+    <div class="details-card alternative">
+      <div class="details-header">
+        <h4>🔀 Camino Alternativo</h4>
+        <span class="condition-badge" [class.if-correct]="selectedAlternative.condition === 'if_correct'" 
+              [class.if-incorrect]="selectedAlternative.condition === 'if_incorrect'">
+          {{ selectedAlternative.condition === 'if_correct' ? 'Si hubieras acertado' : 'Si hubieras fallado' }}
+        </span>
+      </div>
+      <div class="details-content">
+        <div class="alternative-question">
+          <h5>Pregunta que habrías recibido:</h5>
+          <p class="question-text">{{ selectedAlternative.question_text }}</p>
+        </div>
+        
+        <div class="alternative-options" *ngIf="selectedAlternative.options.length > 0">
+          <h6>Opciones:</h6>
+          <ul class="options-list">
+            <li *ngFor="let option of selectedAlternative.options; let i = index" 
+                [class.correct-option]="i === selectedAlternative.correct_answer">
+              <span class="option-letter">{{ getOptionLetter(i) }}</span>
+              <span class="option-text">{{ option }}</span>
+              <span *ngIf="i === selectedAlternative.correct_answer" class="correct-indicator">✓</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="alternative-info">
+          <div class="info-row">
+            <span class="label">Tema:</span>
+            <span class="value">{{ selectedAlternative.topic }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Dificultad:</span>
+            <span class="value difficulty-badge" [style.background-color]="getDifficultyColor(selectedAlternative.difficulty)">
+              {{ selectedAlternative.difficulty }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="label">Llevaría a:</span>
+            <span class="value">{{ selectedAlternative.would_lead_to }}</span>
+          </div>
+        </div>
+
+        <div class="alternative-explanation">
+          <h6>Explicación:</h6>
+          <p>{{ selectedAlternative.explanation }}</p>
+        </div>
+      </div>
+      <button class="close-details" (click)="selectedAlternative = null">×</button>
+    </div>
+  </div>
+</div>
