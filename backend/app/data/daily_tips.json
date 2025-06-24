@@ -1,0 +1,18 @@
+{
+  "daily_tips": [
+    {
+      "id": "tip-1",
+      "title": "Práctica Diaria",
+      "content": "La programación se aprende mejor practicando todos los días. ¡Dedica al menos 30 minutos diarios a tu aprendizaje!",
+      "category": "learning",
+      "icon": "💡"
+    },
+    {
+      "id": "tip-2",
+      "title": "Debuggear es Aprender",
+      "content": "No te frustres con los errores. Cada bug que resuelves te hace un mejor programador. ¡Los errores son oportunidades de aprendizaje!",
+      "category": "programming",
+      "icon": "🐛"
+    }
+  ]
+}

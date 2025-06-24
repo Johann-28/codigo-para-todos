@@ -1,0 +1,173 @@
+{
+  "questions": [
+    {
+      "id": 1,
+      "question": "What is a variable in programming?",
+      "options": [
+        "A value that never changes",
+        "A memory space to store data",
+        "A mathematical function",
+        "A type of loop"
+      ],
+      "correct_answer": 1,
+      "difficulty": "basic",
+      "topic": "Variables"
+    },
+    {
+      "id": 2,
+      "question": "What is the correct syntax to declare a variable in Java?",
+      "options": [
+        "var x = 5;",
+        "int x = 5;",
+        "variable x = 5;",
+        "declare int x = 5;"
+      ],
+      "correct_answer": 1,
+      "difficulty": "basic",
+      "topic": "Variables"
+    },
+    {
+      "id": 3,
+      "question": "What is a 'for' loop in programming?",
+      "options": [
+        "A data structure",
+        "A control structure that repeats code",
+        "A mathematical function",
+        "A type of variable"
+      ],
+      "correct_answer": 1,
+      "difficulty": "intermediate",
+      "topic": "Loops"
+    },
+    {
+      "id": 4,
+      "question": "Which symbol is used for single-line comments in Python?",
+      "options": [
+        "//",
+        "#",
+        "/* */",
+        "--"
+      ],
+      "correct_answer": 1,
+      "difficulty": "basic",
+      "topic": "Syntax"
+    },
+    {
+      "id": 5,
+      "question": "What does the 'if' statement do in programming?",
+      "options": [
+        "Repeats code",
+        "Stores data",
+        "Executes code conditionally",
+        "Defines a function"
+      ],
+      "correct_answer": 2,
+      "difficulty": "basic",
+      "topic": "Control Flow"
+    },
+    {
+      "id": 6,
+      "question": "Which of the following is a valid array declaration in JavaScript?",
+      "options": [
+        "array = (1,2,3);",
+        "let arr = [1,2,3];",
+        "arr := 1,2,3;",
+        "int arr = {1,2,3};"
+      ],
+      "correct_answer": 1,
+      "difficulty": "intermediate",
+      "topic": "Arrays"
+    },
+    {
+      "id": 7,
+      "question": "What is the output of 2 + 2 * 2 in most programming languages?",
+      "options": [
+        "8",
+        "6",
+        "4",
+        "10"
+      ],
+      "correct_answer": 1,
+      "difficulty": "basic",
+      "topic": "Operators"
+    },
+    {
+      "id": 8,
+      "question": "Which keyword is used to define a function in Python?",
+      "options": [
+        "function",
+        "def",
+        "fun",
+        "define"
+      ],
+      "correct_answer": 1,
+      "difficulty": "basic",
+      "topic": "Functions"
+    },
+    {
+      "id": 9,
+      "question": "What is the main purpose of a loop?",
+      "options": [
+        "To store data",
+        "To repeat a block of code",
+        "To define a variable",
+        "To end a program"
+      ],
+      "correct_answer": 1,
+      "difficulty": "basic",
+      "topic": "Loops"
+    },
+    {
+      "id": 10,
+      "question": "Which of the following is NOT a primitive data type in Java?",
+      "options": [
+        "int",
+        "boolean",
+        "String",
+        "double"
+      ],
+      "correct_answer": 2,
+      "difficulty": "intermediate",
+      "topic": "Data Types"
+        },
+    {
+      "id": 11,
+      "question": "What is the time complexity of binary search in a sorted array?",
+      "options": [
+        "O(n)",
+        "O(log n)",
+        "O(n^2)",
+        "O(1)"
+      ],
+      "correct_answer": 1,
+      "difficulty": "advanced",
+      "topic": "Algorithms"
+    },
+    {
+      "id": 12,
+      "question": "Which of the following best describes polymorphism in object-oriented programming?",
+      "options": [
+        "The ability to inherit from multiple classes",
+        "The ability to define multiple methods with the same name but different implementations",
+        "The ability to encapsulate data",
+        "The ability to create objects"
+      ],
+      "correct_answer": 1,
+      "difficulty": "advanced",
+      "topic": "OOP"
+    },
+    {
+      "id": 13,
+      "question": "What is the main advantage of using recursion over iteration?",
+      "options": [
+        "Recursion is always faster",
+        "Recursion uses less memory",
+        "Recursion can simplify code for problems that have a recursive structure",
+        "Recursion avoids stack overflow"
+      ],
+      "correct_answer": 2,
+      "difficulty": "advanced",
+      "topic": "Algorithms"
+    }
+  ]
+}

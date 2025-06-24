@@ -18,10 +18,10 @@
     <span class="progress-text">
       Question {{ (currentSession()?.answers?.length || 0) + 1 }} of {{ questions().length || '...' }}
     </span>
-    
+
     <!-- Debug info (should be removed in production) -->
     <div class="debug-info" style="font-size: 12px; color: #666; margin-top: 5px;">
-      Debug: Progress = {{ progressPercentage() }}% | Current Index = {{ currentSession()?.currentQuestionIndex || 0 }}
+      Debug: Progress = {{ progressPercentage() }}% | Current Index = {{ currentSession()?.current_question_index }}
     </div>
   </section>
 
@@ -53,16 +53,11 @@
         <h2>{{ currentQuestion()?.question }}</h2>
 
         <fieldset class="options-container">
-          <div *ngFor="let option of currentQuestion()?.options; let i = index" 
-               class="option-item"
-               [class.selected]="selectedAnswer() === i" 
-               (click)="selectAnswer(i)">
-            <input type="radio" 
-                   [id]="'option-' + i" 
-                   [name]="'question-' + (currentSession()?.currentQuestionIndex || 0)"
-                   [value]="i" 
-                   [checked]="selectedAnswer() === i"
-                   (change)="selectAnswer(i)">
+          <div *ngFor="let option of currentQuestion()?.options; let i = index" class="option-item"
+            [class.selected]="selectedAnswer() === i" (click)="selectAnswer(i)">
+            <input type="radio" [id]="'option-' + i"
+              [name]="'question-' + (currentSession()?.current_question_index || 0)" [value]="i"
+              [checked]="selectedAnswer() === i" (change)="selectAnswer(i)">
             <label [for]="'option-' + i">{{ option }}</label>
           </div>
         </fieldset>
@@ -70,10 +65,7 @@
 
       <footer class="question-actions">
         <div class="action-spacer"></div>
-        <button class="btn btn-primary" 
-                [disabled]="!canGoNext() || isLoading()" 
-                (click)="nextQuestion()"
-                type="button">
+        <button class="btn btn-primary" [disabled]="!canGoNext() || isLoading()" (click)="nextQuestion()" type="button">
           <span *ngIf="!isLoading()">Next</span>
           <span *ngIf="isLoading()">Processing...</span>
         </button>
@@ -81,13 +73,11 @@
 
       <!-- Question Metadata -->
       <aside class="question-info">
-        <span class="difficulty-badge" 
-              [class]="'difficulty-' + currentQuestion()?.difficulty"
-              [attr.aria-label]="'Difficulty: ' + getDifficultyText(currentQuestion()?.difficulty)">
+        <span class="difficulty-badge" [class]="'difficulty-' + currentQuestion()?.difficulty"
+          [attr.aria-label]="'Difficulty: ' + getDifficultyText(currentQuestion()?.difficulty)">
           {{ getDifficultyText(currentQuestion()?.difficulty) }}
         </span>
-        <span class="topic-badge"
-              [attr.aria-label]="'Topic: ' + currentQuestion()?.topic">
+        <span class="topic-badge" [attr.aria-label]="'Topic: ' + currentQuestion()?.topic">
           {{ currentQuestion()?.topic }}
         </span>
       </aside>
@@ -102,9 +92,8 @@
       </header>
 
       <section class="level-indicator">
-        <div class="level-badge" 
-             [class]="getLevelClass(evaluationResult()?.level || 'basic')"
-             [attr.aria-label]="'Your level: ' + getLevelText(evaluationResult()?.level || 'basic')">
+        <div class="level-badge" [class]="getLevelClass(evaluationResult()?.level || 'basic')"
+          [attr.aria-label]="'Your level: ' + getLevelText(evaluationResult()?.level || 'basic')">
           {{ getLevelText(evaluationResult()?.level || 'basic') }}
         </div>
       </section>
@@ -117,7 +106,7 @@
 
         <div class="score-item">
           <span class="score-label">Learning Style:</span>
-          <span class="score-value">{{ evaluationResult()?.learningStyle }}</span>
+          <span class="score-value">{{ evaluationResult()?.learning_style }}</span>
         </div>
 
         <div class="score-item">
@@ -129,16 +118,10 @@
       <section class="topics-breakdown" *ngIf="getTopicEntries().length > 0">
         <h2>Performance by Topic:</h2>
         <div class="topic-list" role="list">
-          <div *ngFor="let topic of getTopicEntries()" 
-               class="topic-item" 
-               role="listitem">
+          <div *ngFor="let topic of getTopicEntries()" class="topic-item" role="listitem">
             <span class="topic-name">{{ topic.key }}</span>
-            <div class="topic-progress" 
-                 role="progressbar" 
-                 [attr.aria-valuenow]="topic.value"
-                 [attr.aria-valuemin]="0"
-                 [attr.aria-valuemax]="100"
-                 [attr.aria-label]="topic.key + ' progress: ' + topic.value + '%'">
+            <div class="topic-progress" role="progressbar" [attr.aria-valuenow]="topic.value" [attr.aria-valuemin]="0"
+              [attr.aria-valuemax]="100" [attr.aria-label]="topic.key + ' progress: ' + topic.value + '%'">
               <div class="topic-fill" [style.width.%]="topic.value"></div>
             </div>
             <span class="topic-score">{{ topic.value }}%</span>
@@ -157,12 +140,115 @@
       </section>
 
       <footer>
-        <button class="btn btn-primary btn-large" 
-                (click)="goToHome()"
-                type="button">
+        <button class="btn btn-primary btn-large" (click)="goToHome()" type="button">
           Continue to Dashboard
         </button>
       </footer>
+
+      <section class="answer-review-container" *ngIf="showResults() && getAnswerReview().length > 0">
+        <article class="answer-review-card">
+          <header class="carousel-header">
+            <h2>📋 Revisión de Respuestas</h2>
+            <p>Revisa tus respuestas y aprende de los errores</p>
+          </header>
+
+          <nav class="carousel-navigation">
+            <div class="question-counter">
+              <span>📊</span>
+              <span>Pregunta {{ currentReviewIndex + 1 }} de {{ getAnswerReview().length }}</span>
+            </div>
+            <div class="nav-buttons">
+              <button class="nav-btn" [disabled]="currentReviewIndex === 0" (click)="previousReviewQuestion()"
+                type="button">
+                ‹
+              </button>
+              <button class="nav-btn" [disabled]="currentReviewIndex === getAnswerReview().length - 1"
+                (click)="nextReviewQuestion()" type="button">
+                ›
+              </button>
+            </div>
+          </nav>
+
+          <div class="carousel-content">
+            <div class="carousel-track" [style.transform]="'translateX(-' + (currentReviewIndex * 100) + '%)'">
+              <div *ngFor="let reviewItem of getAnswerReview(); let i = index" class="carousel-slide">
+                <div class="answer-item" [class.correct]="reviewItem.isCorrect"
+                  [class.incorrect]="!reviewItem.isCorrect">
+
+                  <!-- Question Header -->
+                  <div class="answer-header">
+                    <span class="question-number">Pregunta {{ i + 1 }}</span>
+                    <span class="difficulty-badge" [class]="'difficulty-' + reviewItem.question.difficulty">
+                      {{ getDifficultyText(reviewItem.question.difficulty) }}
+                    </span>
+                    <span class="topic-badge">{{ reviewItem.question.topic }}</span>
+                  </div>
+
+                  <!-- Question Text -->
+                  <div class="question-text">
+                    <h3>{{ reviewItem.question.question }}</h3>
+                  </div>
+
+                  <!-- Options -->
+                  <div class="options-review">
+                    <div *ngFor="let option of reviewItem.question.options; let optionIndex = index"
+                      class="option-review"
+                      [class.selected-correct]="optionIndex === reviewItem.selectedAnswer && reviewItem.isCorrect"
+                      [class.selected-incorrect]="optionIndex === reviewItem.selectedAnswer && !reviewItem.isCorrect"
+                      [class.correct-answer]="optionIndex === reviewItem.question.correct_answer && !reviewItem.isCorrect">
+
+                      <div class="option-content">
+                        <span class="option-letter">{{ getOptionLetter(optionIndex) }}</span>
+                        <span class="option-text">{{ option }}</span>
+                      </div>
+
+                      <!-- Status Icons -->
+                      <div class="option-status">
+                        <!-- User's selected answer (correct) -->
+                        <span *ngIf="optionIndex === reviewItem.selectedAnswer && reviewItem.isCorrect"
+                          class="status-icon correct-icon" title="Tu respuesta correcta">
+                          ✓
+                        </span>
+
+                        <!-- User's selected answer (incorrect) -->
+                        <span *ngIf="optionIndex === reviewItem.selectedAnswer && !reviewItem.isCorrect"
+                          class="status-icon incorrect-icon" title="Tu respuesta incorrecta">
+                          ✗
+                        </span>
+
+                        <!-- Correct answer (when user was wrong) -->
+                        <span *ngIf="optionIndex === reviewItem.question.correct_answer && !reviewItem.isCorrect"
+                          class="status-icon correct-answer-icon" title="Respuesta correcta">
+                          ✓
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Answer Status -->
+                  <div class="answer-status" [class.correct]="reviewItem.isCorrect"
+                    [class.incorrect]="!reviewItem.isCorrect">
+                    <span *ngIf="reviewItem.isCorrect" class="status-text correct">
+                      <span class="status-icon correct-icon">✓</span>
+                      ¡Correcto! Excelente trabajo
+                    </span>
+                    <span *ngIf="!reviewItem.isCorrect" class="status-text incorrect">
+                      <span class="status-icon incorrect-icon">✗</span>
+                      Incorrecto. Revisa la respuesta correcta
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="carousel-progress">
+            <div *ngFor="let item of getAnswerReview(); let i = index" class="progress-dot"
+              [class.active]="i === currentReviewIndex" (click)="goToReviewSlide(i)">
+            </div>
+          </div>
+        </article>
+      </section>
     </article>
   </main>
 
@@ -171,9 +257,7 @@
     <div class="no-questions-card" role="alert">
       <h2>No questions available</h2>
       <p>Please contact the system administrator.</p>
-      <button class="btn btn-secondary" 
-              (click)="retryEvaluation()"
-              type="button">
+      <button class="btn btn-secondary" (click)="retryEvaluation()" type="button">
         Retry
       </button>
     </div>

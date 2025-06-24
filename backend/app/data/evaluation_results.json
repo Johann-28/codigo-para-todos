@@ -1,0 +1,23 @@
+{
+  "evaluation_results": [
+    {
+      "id": "result_001",
+      "session_id": "session_001",
+      "user_id": "user_001",
+      "level": "intermediate",
+      "score": 75,
+      "topics": {
+        "variables": 0.8,
+        "functions": 0.7,
+        "loops": 0.6,
+        "conditionals": 0.9
+      },
+      "learning_style": "visual",
+      "recommendations": [
+        "Practicar más con bucles for",
+        "Revisar conceptos de funciones"
+      ],
+      "created_at": "2024-06-12T09:15:00Z"
+    }
+  ]
+}

@@ -29,16 +29,15 @@
             "name": "🅰️ Angular Frontend",
             "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/frontend/node_modules/@angular/cli/bin/ng",
+            "program": "${workspaceFolder}/codigo-para-todos/node_modules/@angular/cli/bin/ng",
             "args": [
                 "serve",
                 "--host",
                 "0.0.0.0",
                 "--port",
                 "4200",
-                "--source-map"
             ],
-            "cwd": "${workspaceFolder}/frontend",
+            "cwd": "${workspaceFolder}/codigo-para-todos",
             "console": "integratedTerminal",
             "env": {
                 "NODE_ENV": "development"
@@ -112,26 +111,24 @@
             "name": "🔧 Angular Build Debug",
             "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/frontend/node_modules/@angular/cli/bin/ng",
+            "program": "${workspaceFolder}/codigo-para-todos/node_modules/@angular/cli/bin/ng",
             "args": [
                 "build",
-                "--source-map",
                 "--watch"
             ],
-            "cwd": "${workspaceFolder}/frontend",
+            "cwd": "${workspaceFolder}/codigo-para-todos",
             "console": "integratedTerminal"
         },
         {
             "name": "🧪 Angular Tests",
             "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/frontend/node_modules/@angular/cli/bin/ng",
+            "program": "${workspaceFolder}/codigo-para-todos/node_modules/@angular/cli/bin/ng",
             "args": [
                 "test",
                 "--watch",
-                "--source-map"
             ],
-            "cwd": "${workspaceFolder}/frontend",
+            "cwd": "${workspaceFolder}/codigo-para-todos",
             "console": "integratedTerminal"
         },
         {
@@ -139,8 +136,7 @@
             "type": "chrome",
             "request": "launch",
             "url": "http://localhost:4200",
-            "webRoot": "${workspaceFolder}/frontend/src",
-            "sourceMaps": true,
+            "webRoot": "${workspaceFolder}/codigo-para-todos/src",
             "userDataDir": "${workspaceFolder}/.vscode/chrome-debug-user-data",
             "runtimeArgs": [
                 "--disable-web-security",

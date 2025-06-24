@@ -2,7 +2,7 @@ export interface Question {
   id: number;
   question: string;
   options: string[];
-  correctAnswer: number;
+  correct_answer: number;
   difficulty: 'basic' | 'intermediate' | 'advanced';
   topic: string;
 }

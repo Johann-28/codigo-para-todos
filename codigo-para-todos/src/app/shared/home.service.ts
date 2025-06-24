@@ -8,7 +8,7 @@ export interface Question {
   id: number;
   question: string;
   options: string[];
-  correctAnswer: number;
+  correct_answer: number;
   difficulty: 'basic' | 'intermediate' | 'advanced';
   topic: string;
 }
@@ -17,24 +17,24 @@ export interface EvaluationResult {
   level: 'basic' | 'intermediate' | 'advanced';
   score: number;
   topics: { [key: string]: number };
-  learningStyle: string;
+  learning_style: string;
   recommendations: string[];
 }
 
-export interface UserAnswer {
-  questionId: number;
-  selectedOption: number;
-  timeSpent: number;
+export interface question_id {
+  question_id: number;
+  selected_option: number;
+  time_spent: number;
   difficulty: string;
 }
 
 export interface EvaluationSession {
-  sessionId: string;
-  userId: string;
-  startTime: Date;
-  currentQuestionIndex: number;
-  answers: UserAnswer[];
-  isCompleted: boolean;
+  session_id: string;
+  user_id: string;
+  start_time: Date;
+  current_question_index: number;
+  answers: question_id[];
+  is_completed: boolean;
 }
 
 export interface SubmitAnswerResponse {
@@ -133,16 +133,18 @@ export class DiagnosticEvaluationService {
   /**
    * Submits an answer and gets the next question (adaptive)
    */
-  submitAnswer(sessionId: string, answer: UserAnswer): Observable<SubmitAnswerResponse> {
+  submitAnswer(sessionId: string, answer: question_id): Observable<SubmitAnswerResponse> {
     const requestData = {
       session_id: sessionId,
       answer: {
-        question_id: answer.questionId,
-        selected_option: answer.selectedOption,
-        time_spent: answer.timeSpent,
+        question_id: answer.question_id,
+        selected_option: answer.selected_option,
+        time_spent: answer.time_spent,
         difficulty: answer.difficulty
       }
     };
+    console.log('Submitting answer:', requestData);
+    
 
     return this.http.post<SubmitAnswerResponse>(`${this.apiUrl}/submit-answer`, requestData).pipe(
       map((response: SubmitAnswerResponse) => {
@@ -150,7 +152,7 @@ export class DiagnosticEvaluationService {
         if (response.isCompleted) {
           const currentSession = this.currentSession$.value;
           if (currentSession) {
-            currentSession.isCompleted = true;
+            currentSession.is_completed = true;
             this.currentSession$.next(currentSession);
           }
         }
@@ -209,11 +211,11 @@ export class DiagnosticEvaluationService {
   /**
    * Helper method to map backend response to frontend format
    */
-  private mapAnswerToBackendFormat(answer: UserAnswer) {
+  private mapAnswerToBackendFormat(answer: question_id) {
     return {
-      question_id: answer.questionId,
-      selected_option: answer.selectedOption,
-      time_spent: answer.timeSpent,
+      question_id: answer.question_id,
+      selected_option: answer.selected_option,
+      time_spent: answer.time_spent,
       difficulty: answer.difficulty
     };
   }
@@ -223,12 +225,12 @@ export class DiagnosticEvaluationService {
    */
   private mapSessionFromBackend(session: any): EvaluationSession {
     return {
-      sessionId: session.session_id || session.sessionId,
-      userId: session.user_id || session.userId,
-      startTime: new Date(session.start_time || session.startTime),
-      currentQuestionIndex: session.current_question_index || session.currentQuestionIndex,
+      session_id: session.session_id || session.sessionId,
+      user_id: session.user_id || session.userId,
+      start_time: new Date(session.start_time || session.startTime),
+      current_question_index: session.current_question_index || session.currentQuestionIndex,
       answers: session.answers || [],
-      isCompleted: session.is_completed || session.isCompleted
+      is_completed: session.is_completed || session.isCompleted
     };
   }
 }

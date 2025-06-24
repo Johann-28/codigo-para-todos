@@ -5,7 +5,8 @@ import { Router } from '@angular/router';
 import { Subject, takeUntil, finalize } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { EvaluationResult } from '../models/diagnostic-evaluation';
-import { DiagnosticEvaluationService, Question, EvaluationSession, UserAnswer, SubmitAnswerResponse, EvaluationResultResponse } from '../shared/home.service';
+import { DiagnosticEvaluationService, Question, EvaluationSession, question_id, SubmitAnswerResponse, EvaluationResultResponse } from '../shared/home.service';
+import { AnswerReviewItem } from '../models/diagnostic-evaluation/answer-review-item';
 
 @Component({
   selector: 'app-diagnostic-evaluation',
@@ -31,6 +32,7 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
   questionStartTime = signal<number>(0);
   error = signal<string | null>(null);
   totalAnswered = signal<number>(0);
+  currentReviewIndex : number = 0;
 
   // Computed values
   hasQuestions = computed(() => this.questions().length > 0);
@@ -44,6 +46,7 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
   currentUser = computed(() => this.authService.currentUser());
 
   ngOnInit() {
+        this.currentReviewIndex = 0;
     console.log('Diagnostic Evaluation Component initialized');
     this.startEvaluation();
   }
@@ -72,7 +75,7 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (session) => {
-          console.log('Evaluation session started:', session);
+          console.log(session);
           this.currentSession.set(session);
           this.loadInitialQuestions();
         },
@@ -93,7 +96,6 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (questions) => {
-          console.log('Initial questions loaded:', questions);
           this.questions.set(questions);
           if (questions.length > 0) {
             this.currentQuestion.set(questions[0]);
@@ -111,6 +113,7 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
     this.selectedAnswer.set(optionIndex);
   }
 
+
   nextQuestion() {
     const session = this.currentSession();
     const currentQ = this.currentQuestion();
@@ -124,16 +127,15 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
     this.isLoading.set(true);
 
     // Prepare answer data
-    const answer: UserAnswer = {
-      questionId: currentQ.id,
-      selectedOption: selected,
-      timeSpent: Date.now() - this.questionStartTime(),
+    const answer: question_id = {
+      question_id: currentQ.id,
+      selected_option: selected,
+      time_spent: Date.now() - this.questionStartTime(),
       difficulty: currentQ.difficulty
     };
 
-    console.log('Submitting answer:', answer);
 
-    this.evaluationService.submitAnswer(session.sessionId, answer)
+    this.evaluationService.submitAnswer(session.session_id, answer)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => this.isLoading.set(false))
@@ -171,7 +173,7 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
 
     this.isLoading.set(true);
 
-    this.evaluationService.getAdaptiveQuestions(session.sessionId)
+    this.evaluationService.getAdaptiveQuestions(session.session_id)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => this.isLoading.set(false))
@@ -204,7 +206,7 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
 
     this.isLoading.set(true);
 
-    this.evaluationService.calculateResults(session.sessionId)
+    this.evaluationService.calculateResults(session.session_id)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => this.isLoading.set(false))
@@ -213,6 +215,7 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
         next: (response: EvaluationResultResponse) => {
           console.log('Results calculated:', response);
           this.evaluationResult.set(response.result);
+          this.currentSession.set(response.session);
           this.showResults.set(true);
           this.saveResults();
         },
@@ -227,7 +230,7 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
     const session = this.currentSession();
     if (!session) return;
 
-    this.evaluationService.saveResults(session.sessionId)
+    this.evaluationService.saveResults(session.session_id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -351,4 +354,59 @@ export class DiagnosticEvaluationComponent implements OnInit, OnDestroy {
     if (score >= 40) return 'Regular';
     return 'Necesita mejorar';
   }
+
+  getAnswerReview(): AnswerReviewItem[] {
+  const session = this.currentSession();
+  const questions = this.questions();
+  
+  if (!session?.answers || !questions.length) {
+    return [];
+  }
+
+  console.log(session);
+  const reviewItems = session.answers.map(answer => {
+    const question = questions.find(q => q.id === answer.question_id);
+    if (!question) {
+      return null;
+    }
+    console.log('Selected option: ', answer.selected_option);
+    console.log('Correct answer: ', question.correct_answer);
+    console.log('Question: ', question);
+    const isCorrect = answer.selected_option === question.correct_answer;
+
+    return {
+      question,
+      selectedAnswer: answer.selected_option,
+      isCorrect,
+      timeTaken: answer.time_spent
+    };
+  }).filter(item => item !== null) as AnswerReviewItem[];
+
+  console.log('Answer review items:', reviewItems);
+  return reviewItems;
+
+
+}
+
+getOptionLetter(index: number): string {
+  return String.fromCharCode(65 + index); // A, B, C, D
+}
+
+ goToReviewSlide(index: number): void {
+    this.currentReviewIndex = index;
+  }
+
+    nextReviewQuestion(): void {
+    if (this.currentReviewIndex < this.getAnswerReview().length - 1) {
+      this.currentReviewIndex++;
+    }
+  }
+
+   previousReviewQuestion(): void {
+    if (this.currentReviewIndex > 0) {
+      this.currentReviewIndex--;
+    }
+  }
+
+
 }

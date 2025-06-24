@@ -37,7 +37,7 @@ class EvaluationResult(BaseModel):
     """Final evaluation result"""
     level: DifficultyLevel = Field(..., description="Determined user level")
     score: int = Field(..., ge=0, le=100, description="Overall score percentage")
-    topics: Dict[str, int] = Field(..., description="Score per topic (percentage)")
+    topics: Dict[str, float] = Field(..., description="Score per topic (percentage)")
     learning_style: str = Field(..., description="Determined learning style")
     recommendations: List[str] = Field(..., description="Personalized recommendations")
 

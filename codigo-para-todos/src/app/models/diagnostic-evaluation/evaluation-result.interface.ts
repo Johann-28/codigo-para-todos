@@ -2,7 +2,7 @@ export interface EvaluationResult {
   level: 'basic' | 'intermediate' | 'advanced';
   score: number;
   topics: { [key: string]: number };
-  learningStyle: string;
+  learning_style: string;
   recommendations: string[];
 
 }

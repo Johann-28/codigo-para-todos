@@ -1,0 +1,92 @@
+{
+  "learning_paths": [
+    {
+      "id": "basic-programming",
+      "title": "Fundamentos de Programación",
+      "description": "Aprende los conceptos básicos de programación desde cero con ejercicios prácticos en Java",
+      "difficulty": "basic",
+      "estimated_time": "8-10 semanas",
+      "modules": 8,
+      "icon": "🎯",
+      "color": "#10b981",
+      "progress": 100,
+      "instructor": {
+        "name": "Prof. María González",
+        "avatar": "👩‍🏫",
+        "rating": 4.9
+      },
+      "rating": {
+        "average": 4.8,
+        "total_reviews": 1247
+      },
+      "is_popular": true,
+      "category": "programming"
+    },
+    {
+      "id": "web-development",
+      "title": "Desarrollo Web Frontend",
+      "description": "HTML, CSS, JavaScript y frameworks modernos como React y Angular",
+      "difficulty": "intermediate",
+      "estimated_time": "8-10 semanas",
+      "modules": 12,
+      "icon": "🌐",
+      "color": "#3b82f6",
+      "progress": 25,
+      "instructor": {
+        "name": "Prof. Carlos Ruiz",
+        "avatar": "👨‍🏫",
+        "rating": 4.7
+      },
+      "rating": {
+        "average": 4.6,
+        "total_reviews": 892
+      },
+      "is_popular": false,
+      "category": "web"
+    },
+    {
+      "id": "backend-development",
+      "title": "Desarrollo Backend",
+      "description": "APIs REST, bases de datos, Node.js y arquitectura de servidores",
+      "difficulty": "intermediate",
+      "estimated_time": "10-12 semanas",
+      "modules": 15,
+      "icon": "⚙️",
+      "color": "#8b5cf6",
+      "progress": 0,
+      "instructor": {
+        "name": "Prof. Ana López",
+        "avatar": "👩‍🏫",
+        "rating": 4.8
+      },
+      "rating": {
+        "average": 4.7,
+        "total_reviews": 654
+      },
+      "is_popular": false,
+      "category": "backend"
+    },
+    {
+      "id": "mobile-development",
+      "title": "Desarrollo Móvil",
+      "description": "Crea aplicaciones nativas con React Native y Flutter",
+      "difficulty": "advanced",
+      "estimated_time": "12-14 semanas",
+      "modules": 18,
+      "icon": "📱",
+      "color": "#f59e0b",
+      "progress": 0,
+      "instructor": {
+        "name": "Prof. Luis Hernández",
+        "avatar": "👨‍🏫",
+        "rating": 4.9
+      },
+      "rating": {
+        "average": 4.8,
+        "total_reviews": 423
+      },
+      "is_popular": false,
+      "category": "mobile"
+    }
+  ]
+}

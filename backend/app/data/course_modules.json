@@ -1,0 +1,22 @@
+{
+  "course_modules": [
+    {
+      "id": "module-1",
+      "course_id": "basic-programming",
+      "title": "Resolución de Problemas",
+      "description": "Aprende a analizar y resolver problemas de manera sistemática usando diagramas de flujo",
+      "estimated_time": "1 semana",
+      "order": 1,
+      "is_completed": false
+    },
+    {
+      "id": "module-2",
+      "course_id": "basic-programming",
+      "title": "Instalación del JDK",
+      "description": "Configura tu entorno de desarrollo Java en tu sistema operativo",
+      "estimated_time": "3 días",
+      "order": 2,
+      "is_completed": false
+    }
+  ]
+}

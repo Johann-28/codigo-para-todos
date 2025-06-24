@@ -88,7 +88,7 @@ export class HomeService {
    * Gets all available learning paths
    */
   getLearningPaths(): Observable<LearningPath[]> {
-    return this.http.get<LearningPath[]>(`${this.apiUrl}/learning-paths`).pipe(
+    return this.http.get<LearningPath[]>(`${this.apiUrl}/learning-paths/`).pipe(
       map((paths: any[]) => paths.map(path => this.mapLearningPathFromBackend(path))),
       catchError((error) => {
         console.error('Error getting learning paths:', error);

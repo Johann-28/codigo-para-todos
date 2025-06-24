@@ -1,0 +1,25 @@
+{
+  "achievements": [
+    {
+      "id": "first-evaluation",
+      "title": "¡Primera Evaluación!",
+      "description": "Completaste tu primera evaluación diagnóstica",
+      "icon": "🏆",
+      "points": 100
+    },
+    {
+      "id": "welcome",
+      "title": "Bienvenido a Código para Todos",
+      "description": "Te registraste exitosamente en nuestra plataforma",
+      "icon": "🎉",
+      "points": 50
+    },
+    {
+      "id": "first-lesson",
+      "title": "Primera Lección Completada",
+      "description": "Completaste tu primera lección de programación",
+      "icon": "📚",
+      "points": 75
+    }
+  ]
+}

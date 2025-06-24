@@ -1,0 +1,48 @@
+{
+  "lessons": [
+    {
+      "id": "lesson-1-1",
+      "module_id": "module-1",
+      "title": "Introducción a la Resolución de Problemas",
+      "description": "Metodología para abordar problemas computacionales",
+      "type": "video",
+      "estimated_time": "30 min",
+      "order": 1,
+      "is_completed": true,
+      "is_locked": false
+    },
+    {
+      "id": "lesson-1-2",
+      "module_id": "module-1",
+      "title": "Diagramas de Flujo - Conceptos Básicos",
+      "description": "Aprende a crear diagramas de flujo para representar algoritmos",
+      "type": "video",
+      "estimated_time": "45 min",
+      "order": 2,
+      "is_completed": true,
+      "is_locked": false
+    },
+    {
+      "id": "lesson-1-3",
+      "module_id": "module-1",
+      "title": "Práctica: Creando tu Primer Diagrama",
+      "description": "Ejercicio práctico para crear diagramas de flujo",
+      "type": "exercise",
+      "estimated_time": "60 min",
+      "order": 3,
+      "is_completed": true,
+      "is_locked": false
+    },
+    {
+      "id": "lesson-1-4",
+      "module_id": "module-1",
+      "title": "Quiz: Diagramas de Flujo",
+      "description": "Evaluación de conocimientos sobre diagramas de flujo",
+      "type": "quiz",
+      "estimated_time": "15 min",
+      "order": 4,
+      "is_completed": true,
+      "is_locked": false
+    }
+  ]
+}

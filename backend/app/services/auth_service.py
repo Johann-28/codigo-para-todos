@@ -1,31 +1,27 @@
 """
-Authentication service
-Business logic for user authentication, registration, and profile management
+Authentication service using repositories
 """
-
 import base64
 import json
 from datetime import datetime, timedelta
 from typing import Optional
-from app.models.auth import User, UserCreate, UserLogin, UserUpdate, PasswordChange, AuthResponse, TokenData
-from app.utils.mock_data import mock_data
+from app.models.auth import User, UserCreate, UserLogin, UserUpdate, PasswordChange, AuthResponse, TokenData, UserPreferences
+from app.models.common import UserRole, Theme, Language
+from app.repositories.user_repository import user_repository
 from app.core.config import settings
 
 class AuthService:
-    """Service class for authentication operations"""
+    """Service class for authentication operations using repositories"""
     
     def __init__(self):
-        self.mock_data = mock_data
+        self.user_repo = user_repository
     
     async def login(self, login_data: UserLogin) -> AuthResponse:
-        """
-        Authenticate user with email and password
-        In production, this would verify against a real database with hashed passwords
-        """
+        """Authenticate user with email and password"""
         # Find user by email
-        user = self.mock_data.get_user_by_email(login_data.email)
+        user_data = self.user_repo.find_by_email(login_data.email)
         
-        if not user:
+        if not user_data:
             return AuthResponse(
                 success=False,
                 message="Usuario no encontrado"
@@ -39,7 +35,10 @@ class AuthService:
             )
         
         # Update last login time
-        user.last_login_at = datetime.now()
+        self.user_repo.update_last_login(user_data['id'])
+        
+        # Convert to User model
+        user = self._dict_to_user(user_data)
         
         # Generate mock token
         token = self._generate_token(user)
@@ -52,120 +51,78 @@ class AuthService:
         )
     
     async def register(self, user_data: UserCreate) -> AuthResponse:
-        """
-        Register a new user
-        In production, this would hash the password and save to database
-        """
+        """Register a new user"""
         # Check if email already exists
-        existing_user = self.mock_data.get_user_by_email(user_data.email)
+        existing_user = self.user_repo.find_by_email(user_data.email)
         if existing_user:
             return AuthResponse(
                 success=False,
                 message="Este email ya está registrado"
             )
         
-        # Create new user
-        new_user = User(
-            id=str(len(self.mock_data.users) + 1),
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            email=user_data.email,
-            avatar=self._generate_random_avatar(),
-            role="student",
-            enrolled_courses=[],
-            completed_courses=[],
-            created_at=datetime.now(),
-            last_login_at=datetime.now()
-        )
+        # Create new user data
+        new_user_data = {
+            "id": self._generate_user_id(),
+            "first_name": user_data.first_name,
+            "last_name": user_data.last_name,
+            "email": user_data.email,
+            "avatar": self._generate_random_avatar(),
+            "role": "student",
+            "enrolled_courses": [],
+            "completed_courses": [],
+            "preferences": {
+                "theme": "light",
+                "language": "es",
+                "notifications": True
+            },
+            "created_at": datetime.now().isoformat(),
+            "last_login_at": datetime.now().isoformat()
+        }
         
-        # Add to mock database
-        self.mock_data._users.append(new_user)
+        # Save to repository
+        saved_user_data = self.user_repo.create(new_user_data)
+        user = self._dict_to_user(saved_user_data)
         
         # Generate token
-        token = self._generate_token(new_user)
+        token = self._generate_token(user)
         
         return AuthResponse(
             success=True,
             message="Cuenta creada exitosamente",
-            user=new_user,
+            user=user,
             token=token
-        )
-    
-    async def social_login(self, provider: str) -> AuthResponse:
-        """
-        Handle social login (Google, GitHub, Facebook)
-        In production, this would verify the social token
-        """
-        # Create mock social user
-        mock_social_user = User(
-            id=f"social_{datetime.now().timestamp()}",
-            first_name="Usuario",
-            last_name=provider.capitalize(),
-            email=f"usuario.{provider}@email.com",
-            avatar=self._get_social_avatar(provider),
-            role="student",
-            enrolled_courses=[],
-            completed_courses=[],
-            created_at=datetime.now(),
-            last_login_at=datetime.now()
-        )
-        
-        # Add to mock database
-        self.mock_data._users.append(mock_social_user)
-        
-        # Generate token
-        token = self._generate_token(mock_social_user)
-        
-        return AuthResponse(
-            success=True,
-            message=f"Conectado con {provider}",
-            user=mock_social_user,
-            token=token
-        )
-    
-    async def forgot_password(self, email: str) -> AuthResponse:
-        """
-        Handle forgot password request
-        In production, this would send a real email with reset link
-        """
-        user = self.mock_data.get_user_by_email(email)
-        
-        if not user:
-            return AuthResponse(
-                success=False,
-                message="Email no encontrado"
-            )
-        
-        # In production: generate reset token and send email
-        print(f"Mock: Email de recuperación enviado a: {email}")
-        
-        return AuthResponse(
-            success=True,
-            message="Email de recuperación enviado"
         )
     
     async def update_profile(self, user_id: str, update_data: UserUpdate) -> AuthResponse:
-        """
-        Update user profile information
-        In production, this would update the database
-        """
-        user = self.mock_data.get_user_by_id(user_id)
+        """Update user profile information"""
+        user_data = self.user_repo.find_by_id(user_id)
         
-        if not user:
+        if not user_data:
             return AuthResponse(
                 success=False,
                 message="Usuario no encontrado"
             )
         
-        # Update user data
+        # Prepare updates
+        updates = {}
         if update_data.first_name:
-            user.first_name = update_data.first_name
+            updates["first_name"] = update_data.first_name
         if update_data.last_name:
-            user.last_name = update_data.last_name
+            updates["last_name"] = update_data.last_name
         if update_data.avatar:
-            user.avatar = update_data.avatar
+            updates["avatar"] = update_data.avatar
         if update_data.preferences:
-            user.preferences = update_data.preferences
+            updates["preferences"] = update_data.preferences.dict()
+        
+        # Update in repository
+        updated_data = self.user_repo.update(user_id, updates)
+        if not updated_data:
+            return AuthResponse(
+                success=False,
+                message="Error al actualizar perfil"
+            )
+        
+        user = self._dict_to_user(updated_data)
         
         return AuthResponse(
             success=True,
@@ -173,52 +130,44 @@ class AuthService:
             user=user
         )
     
-    async def change_password(self, user_id: str, password_data: PasswordChange) -> AuthResponse:
-        """
-        Change user password
-        In production, this would verify current password hash and update with new hash
-        """
-        user = self.mock_data.get_user_by_id(user_id)
+    def _dict_to_user(self, user_data: dict) -> User:
+        """Convert dictionary to User model"""
+        preferences_data = user_data.get('preferences', {})
+        preferences = UserPreferences(
+            theme=Theme(preferences_data.get('theme', 'light')),
+            language=Language(preferences_data.get('language', 'es')),
+            notifications=preferences_data.get('notifications', True)
+        )
         
-        if not user:
-            return AuthResponse(
-                success=False,
-                message="Usuario no encontrado"
-            )
-        
-        # Mock current password validation
-        if len(password_data.current_password) < 6:
-            return AuthResponse(
-                success=False,
-                message="Contraseña actual incorrecta"
-            )
-        
-        if len(password_data.new_password) < 8:
-            return AuthResponse(
-                success=False,
-                message="La nueva contraseña debe tener al menos 8 caracteres"
-            )
-        
-        # In production: hash new password and update database
-        
-        return AuthResponse(
-            success=True,
-            message="Contraseña actualizada exitosamente"
+        return User(
+            id=user_data['id'],
+            first_name=user_data['first_name'],
+            last_name=user_data['last_name'],
+            email=user_data['email'],
+            avatar=user_data.get('avatar', '👤'),
+            role=UserRole(user_data.get('role', 'student')),
+            enrolled_courses=user_data.get('enrolled_courses', []),
+            completed_courses=user_data.get('completed_courses', []),
+            preferences=preferences,
+            created_at=datetime.fromisoformat(user_data['created_at'].replace('Z', '+00:00')),
+            last_login_at=datetime.fromisoformat(user_data['last_login_at'].replace('Z', '+00:00'))
         )
     
+    def _generate_user_id(self) -> str:
+        """Generate unique user ID"""
+        existing_users = self.user_repo.find_all()
+        max_id = max([int(user.get('id', '0')) for user in existing_users if user.get('id', '0').isdigit()], default=0)
+        return str(max_id + 1)
+    
     def _generate_token(self, user: User) -> str:
-        """
-        Generate a mock JWT token
-        In production, use a proper JWT library with secret key
-        """
+        """Generate a mock JWT token"""
         payload = {
             "user_id": user.id,
             "email": user.email,
-            "role": user.role,
+            "role": user.role.value,
             "exp": int((datetime.now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp())
         }
         
-        # Mock JWT - in production use proper JWT encoding
         return "mock_jwt_" + base64.b64encode(json.dumps(payload).encode()).decode()
     
     def _generate_random_avatar(self) -> str:
@@ -226,15 +175,6 @@ class AuthService:
         avatars = ["👨‍💻", "👩‍💻", "🧑‍💻", "👨‍🎓", "👩‍🎓", "🧑‍🎓", "🤓", "😊", "🚀", "💡"]
         import random
         return random.choice(avatars)
-    
-    def _get_social_avatar(self, provider: str) -> str:
-        """Get avatar based on social provider"""
-        avatars = {
-            "google": "🔍",
-            "github": "🐙",
-            "facebook": "📘"
-        }
-        return avatars.get(provider, "👤")
 
 # Global service instance
 auth_service = AuthService()

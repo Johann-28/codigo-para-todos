@@ -1,0 +1,60 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "first_name": "Juan",
+      "last_name": "Pérez",
+      "email": "juan@email.com",
+      "avatar": "👨‍💻",
+      "role": "student",
+      "enrolled_courses": [
+        "basic-programming",
+        "web-development"
+      ],
+      "completed_courses": [],
+      "preferences": {
+        "theme": "light",
+        "language": "es",
+        "notifications": true
+      },
+      "created_at": "2024-07-15T10:30:00Z",
+      "last_login_at": "2025-06-24T11:08:05.843206"
+    },
+    {
+      "id": "2",
+      "first_name": "María",
+      "last_name": "García",
+      "email": "maria@email.com",
+      "avatar": "👩‍💻",
+      "role": "student",
+      "enrolled_courses": [
+        "basic-programming"
+      ],
+      "completed_courses": [],
+      "preferences": {
+        "theme": "dark",
+        "language": "es",
+        "notifications": false
+      },
+      "created_at": "2024-08-15T10:30:00Z",
+      "last_login_at": "2024-12-12T14:30:00Z"
+    },
+    {
+      "id": "3",
+      "first_name": "Admin",
+      "last_name": "Sistema",
+      "email": "admin@email.com",
+      "avatar": "🔧",
+      "role": "admin",
+      "enrolled_courses": [],
+      "completed_courses": [],
+      "preferences": {
+        "theme": "light",
+        "language": "es",
+        "notifications": true
+      },
+      "created_at": "2023-12-12T10:30:00Z",
+      "last_login_at": "2024-12-12T14:30:00Z"
+    }
+  ]
+}
